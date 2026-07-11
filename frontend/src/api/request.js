@@ -2,7 +2,7 @@ import axios from 'axios';
 import { message } from 'antd';
 
 const service = axios.create({
-  baseURL: '', // 后端接口的基础路径
+  baseURL: '/api', // 后端接口的基础路径
   timeout: 15000 // 请求超时时间
 });
 
