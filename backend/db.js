@@ -40,16 +40,30 @@ async function singleConnDemo(sql, params = []) {
 // *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
 
 // 使用连接池处理连接,  连接池只初始化一次（全局单例，只创建1个池）,那个配置也可以单独拿出来，根据环境来配置
+// const pool = mysql.createPool({
+//   host: '127.0.0.1', // Windows 上 localhost 偶尔会被解析到 IPv6，改成 127.0.0.1 更稳
+//   user: 'root',
+//   password: '123456',
+//   port: 3308, // mysql端口
+//   database: 'blog', //数据库的名字
+//   waitForConnections: true,
+//   connectionLimit: 10,
+//   maxIdle: 10, // max idle connections, the default value is the same as `connectionLimit`
+//   idleTimeout: 60000, // idle connections timeout, in milliseconds, the default value 60000
+//   queueLimit: 0,
+//   enableKeepAlive: true,
+//   keepAliveInitialDelay: 0
+// });
 const pool = mysql.createPool({
-  host: '127.0.0.1', // Windows 上 localhost 偶尔会被解析到 IPv6，改成 127.0.0.1 更稳
-  user: 'root',
-  password: '123456',
-  port: 3308, // mysql端口
-  database: 'blog', //数据库的名字
+  host: process.env.DB_HOST,        // 来自 .env：mysql
+  user: process.env.DB_USER,        // 来自 .env：myapp_user
+  password: process.env.DB_PASSWORD,// 来自 .env
+  port: process.env.DB_PORT,        // 来自 .env：3306
+  database: process.env.DB_NAME,    // 来自 .env：blog
   waitForConnections: true,
   connectionLimit: 10,
-  maxIdle: 10, // max idle connections, the default value is the same as `connectionLimit`
-  idleTimeout: 60000, // idle connections timeout, in milliseconds, the default value 60000
+  maxIdle: 10,
+  idleTimeout: 60000,
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0
