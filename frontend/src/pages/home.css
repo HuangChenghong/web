@@ -1,0 +1,143 @@
+/* 让整个 Layout 用 flex 纵向排列，内容区自动撑满 */
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* === 主题色 === */
+/* 把蓝定成 CSS 变量，全局复用，避免到处散落 */
+:root {
+  --brand: #3b82f6;
+  --brand-deep: #2563eb;
+  --brand-soft: #eff6ff;
+  --bg-app: #f5f7fb;       /* 页面背景：极淡蓝灰，比纯灰更柔和 */
+  --surface: #ffffff;
+  --border: #eef1f6;
+  --text-strong: #0f172a;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+}
+
+body {
+  background: var(--bg-app);
+}
+
+/* === Header：磨砂玻璃 + 品牌蓝渐变 === */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 50px;
+  color: #fff;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.18);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+h1 {
+  font-size: 19px;
+  margin: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+h1:hover {
+  opacity: 0.9;
+}
+
+.blog-title {
+  margin-left: 0;          /* 跟 h1 的 gap 统一管理 */
+}
+
+/* Header 右上角登录/注册 */
+.nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-item {
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: background 0.18s, color 0.18s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* 已登录用户名：前面带个绿点表示"在线" */
+.nav-item--user {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.nav-item--user:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.nav-item--user-dropdown {
+  padding: 8px 14px;
+}
+
+.nav-item--user .ant-avatar {
+  background: #8b5cf6;
+  font-weight: 600;
+}
+
+.nav-item__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.3);
+  flex-shrink: 0;
+}
+
+/* 退出按钮：hover 时变红色提示危险 */
+.nav-item--logout {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.nav-item--logout:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fecaca;
+}
+
+/* === 内容区 === */
+.app-content {
+  flex: 1;
+}
+
+.site-layout-content {
+  background: transparent;
+}
+
+/* === Footer：极简 === */
+.app-footer {
+  flex-shrink: 0;
+  padding: 18px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-faint);
+  background: transparent;
+  border-top: 1px solid var(--border);
+  letter-spacing: 0.3px;
+}

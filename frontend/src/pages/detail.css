@@ -1,0 +1,91 @@
+/* 详情页整体容器：贴满白色背景，不再悬浮 */
+.blog-detail {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 16px 64px;
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  color: #1f2937;
+}
+
+/* 标题：居中、大字、深色 */
+.blog-detail__title {
+  font-size: 30px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.4;
+  margin: 0 0 20px;
+  text-align: center;
+  letter-spacing: -0.3px;
+}
+
+/* 元信息条：淡灰，无边框，更轻 */
+.blog-detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  padding: 0 0 28px;
+  margin-bottom: 28px;
+  font-size: 14px;
+  color: #6b7280;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+.blog-detail__meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.blog-detail__meta-icon {
+  font-size: 14px;
+}
+
+.blog-detail__meta-label {
+  color: #9ca3af;
+}
+
+.blog-detail__meta-value {
+  color: #4b5563;
+  font-weight: 500;
+}
+
+/* 正文 */
+.blog-detail__content {
+  font-size: 16px;
+  line-height: 1.9;
+  color: #374151;
+  word-break: break-word;
+}
+
+.blog-detail__content p {
+  margin: 0 0 14px;
+}
+
+/* 加载中 */
+.blog-detail__loading {
+  text-align: center;
+  padding: 120px 0;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* 小屏适配 */
+@media (max-width: 768px) {
+  .blog-detail__title {
+    font-size: 22px;
+  }
+
+  .blog-detail__meta {
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .blog-detail__content {
+    font-size: 15px;
+  }
+}
+

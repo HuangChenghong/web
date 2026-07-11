@@ -1,0 +1,143 @@
+/* === 登录/注册 二合一页面 === */
+
+.auth-page {
+  /* 占满 Content 区，垂直水平居中卡片 */
+  min-height: calc(100vh - 56px - 56px); /* 视高 - Header - Footer 约值 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.08), transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.08), transparent 40%);
+}
+
+/* === 卡片 === */
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 36px 32px 28px;
+  background: #ffffff;
+  border: 1px solid var(--border, #eef1f6);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+/* 顶部品牌区 */
+.auth-card__brand {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.auth-card__logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  color: #ffffff;
+  font-size: 24px;
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.32);
+}
+
+.auth-card__title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-strong, #0f172a);
+  margin: 0 0 6px;
+  letter-spacing: 0.3px;
+}
+
+.auth-card__subtitle {
+  font-size: 13.5px;
+  color: var(--text-faint, #94a3b8);
+  margin: 0;
+}
+
+/* === Tab 切换：登录 / 注册 === */
+.auth-tabs {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 22px;
+}
+
+.auth-tabs__item {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  font-size: 14px;
+  color: var(--text-muted, #64748b);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.auth-tabs__item:hover {
+  color: var(--text-strong, #0f172a);
+}
+
+.auth-tabs__item--active {
+  background: #ffffff;
+  color: var(--brand-deep, #2563eb);
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+/* === 表单输入框 icon 颜色 === */
+.auth-input-icon {
+  color: var(--text-faint, #94a3b8);
+}
+
+/* === 提交按钮 === */
+.auth-submit {
+  height: 42px !important;
+  font-size: 15px !important;
+  font-weight: 500;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.28);
+  margin-top: 6px;
+}
+
+.auth-submit:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.36) !important;
+}
+
+/* === 底部切换链接 === */
+.auth-footer {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted, #64748b);
+}
+
+.auth-footer a {
+  color: var(--brand-deep, #2563eb);
+  margin-left: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: color 0.18s;
+}
+
+.auth-footer a:hover {
+  color: var(--brand, #3b82f6);
+  text-decoration: underline;
+}
+
+/* === 小屏 === */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 28px 22px 22px;
+  }
+  .auth-card__title {
+    font-size: 20px;
+  }
+}

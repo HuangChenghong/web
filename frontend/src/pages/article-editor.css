@@ -1,0 +1,210 @@
+/* === 发布文章页面 === */
+
+.editor-page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 16px 8px;
+}
+
+/* === 卡片 === */
+.editor-card {
+  background: #ffffff;
+  border: 1px solid var(--border, #eef1f6);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+
+/* === 顶部标题栏 === */
+.editor-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 28px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-bottom: 1px solid var(--border, #eef1f6);
+}
+
+.editor-card__title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.editor-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  color: #ffffff;
+  font-size: 18px;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.28);
+  flex-shrink: 0;
+}
+
+.editor-card__title {
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--text-strong, #0f172a);
+  margin: 0 0 2px;
+  letter-spacing: 0.3px;
+}
+
+.editor-card__subtitle {
+  font-size: 13px;
+  color: var(--text-faint, #94a3b8);
+  margin: 0;
+}
+
+/* 右上角徽标 */
+.editor-card__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+/* === 表单区 === */
+.editor-form {
+  padding: 28px 28px 24px;
+}
+
+.editor-form__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: var(--text-strong, #0f172a);
+  font-size: 13.5px;
+}
+
+.editor-form__label .anticon {
+  color: var(--brand, #3b82f6);
+}
+
+/* 标题输入框 */
+.editor-form__title-input.ant-input {
+  height: 46px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+.editor-form__title-input.ant-input:focus,
+.editor-form__title-input.ant-input:hover {
+  border-color: var(--brand, #3b82f6);
+}
+
+/* 分类下拉 */
+.editor-form__category .ant-select-selector {
+  height: 42px !important;
+  border-radius: 8px !important;
+}
+
+.editor-form__category .ant-select-selection-item {
+  line-height: 40px !important;
+}
+
+/* 正文 */
+.editor-form__content.ant-input {
+  border-radius: 8px;
+  font-size: 14.5px;
+  line-height: 1.75;
+  resize: none;
+  font-family: inherit;
+}
+
+.editor-form__content.ant-input:focus,
+.editor-form__content.ant-input:hover {
+  border-color: var(--brand, #3b82f6);
+}
+
+/* === 底部操作栏 === */
+.editor-form__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--border, #eef1f6);
+}
+
+.editor-form__actions-right {
+  display: inline-flex;
+  gap: 10px;
+}
+
+.editor-form__btn {
+  border-radius: 8px !important;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* 取消按钮：幽灵风格 */
+.editor-form__btn--cancel {
+  color: var(--text-muted, #64748b);
+}
+
+.editor-form__btn--cancel:hover {
+  color: var(--text-strong, #0f172a);
+  border-color: #cbd5e1;
+}
+
+/* 保存草稿：浅蓝边框 */
+.editor-form__btn--draft {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
+}
+
+.editor-form__btn--draft:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+/* 发布：主操作渐变蓝 */
+.editor-form__btn--submit.ant-btn-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  border: none !important;
+  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.28);
+}
+
+.editor-form__btn--submit.ant-btn-primary:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 5px 16px rgba(59, 130, 246, 0.36) !important;
+}
+
+/* === 小屏 === */
+@media (max-width: 640px) {
+  .editor-card__header {
+    padding: 18px 20px;
+  }
+  .editor-card__title {
+    font-size: 17px;
+  }
+  .editor-form {
+    padding: 22px 20px;
+  }
+  .editor-form__actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .editor-form__actions-right {
+    display: flex;
+  }
+  .editor-form__btn {
+    flex: 1;
+  }
+}
