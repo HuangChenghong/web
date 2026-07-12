@@ -149,8 +149,15 @@ router.post('/user/update',requireAuth, upload.any(), async (req, res, next) => 
   }
 });
 
-// 4. 注销：删 redis 这一行
+// 4. 注销：删 redis + 清浏览器 cookie（两边都得清）
 router.post('/user/logout', (req, res) => {
-  req.session.destroy(() => res.json({ code: 200, msg: '已退出' }));
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('logout error', err);
+      return res.status(500).json({ code: 500, msg: '退出失败' });
+    }
+    res.clearCookie('connect.sid');   // ← 关键：让浏览器删 cookie
+    res.json({ code: 200, msg: '已退出' });
+  });
 });
 module.exports = router;
