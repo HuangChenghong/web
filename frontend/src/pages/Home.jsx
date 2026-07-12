@@ -1,4 +1,5 @@
 import './home.css';
+import { logoOut } from '@/api/blog'
 import {
   FacebookOutlined,
   LogoutOutlined,
@@ -9,13 +10,15 @@ import { Avatar, Dropdown, Layout, Menu, message } from 'antd';
 import { Outlet, useNavigate } from 'react-router-dom';
 const { Header, Content } = Layout;
 
+
 const Home = () => {
   const navigate = useNavigate();
   const username = localStorage.getItem('username');
   const avatar = localStorage.getItem('userAvatar') || '';
   const [messageApi, contextHolder] = message.useMessage();
 
-  const handleLogout = () => {
+  const handleLogout = async() => {
+    await logoOut();   // 真的告诉后端销毁 session
     localStorage.clear();
     navigate('/');
     messageApi.success('退出登录！');

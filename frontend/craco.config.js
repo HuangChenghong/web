@@ -10,16 +10,11 @@ module.exports = {
     open: true, // 自动打开浏览器
     proxy: {
       // 接口转发，不用写setupProxy.js了
-      '/blogs': {
-        target: 'http://localhost:8000/', // 代理地址
-        changeOrigin: true
-        // pathRewrite: { '^/blogs': '' }
-      },
-      '/users': {
+      '/api': {
         target: 'http://localhost:8000/', // 代理地址
         changeOrigin: true,
-        // pathRewrite: { '^/blogs': '' }
-      }
+        pathRewrite: { '^/api': '' }
+      },
     }
   },
 

@@ -35,6 +35,11 @@ export function registerApi(data) {
   return request.post('/users/user/register', data);
 }
 
+// 退出登录
+export function logoOut(data) {
+  return request.post('/users/user/logout', data);
+}
+
 // 更新用户
 export function updateUser(data) {
   return request.post('/users/user/update', data);

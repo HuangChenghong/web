@@ -1,9 +1,14 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcrypt')
+
 const { dbquery } = require('../db');
 
 const multer = require('multer');
 const path = require('path');
+
+const requireAuth = require('../middleware/auth');
+
 
 // 配置图片存储规则
 const storage = multer.diskStorage({
@@ -29,30 +34,41 @@ const upload = multer({
   }
 });
 
+// 加密
+const hashPwd = async(pwd) => {
+  return await bcrypt.hash(pwd, 10);
+}
+
+// 解密
+const verifyPwd = async(raw, hash) => {
+  return await bcrypt.compare(raw, hash);
+}
+
+
 /**
  * 登录
  * md5和crypto和base64 ，cookie和session和 JWT  TODO:
  */
 router.post('/user/login', async (req, res, next) => {
   const { username, password } = req.body;
-  const findUserSql = `select * from user where username = ? and password = ?`;
+  const findUserSql = `select * from user where username = ?`;
   try {
-    const result = await dbquery(findUserSql, [username, password]);
-    if (result.length > 0) {
-      const user = { ...result[0] };
-      delete user.password;
-      res.json({
-        code: 200,
-        msg: '登录成功',
-        data: user
-      });
-    } else {
-      res.json({
-        code: 400,
-        msg: '账号或者密码错误~',
-        data: {}
-      });
+    const result = await dbquery(findUserSql, [username]);
+    if(result.length === 0) {
+      return res.json({ code: 400, msg: '用户名和密码不能为空', data: {} });
     }
+
+    const user = result[0];
+    const isCorrect = await verifyPwd(password, user.password);
+    if (!isCorrect) {
+      return res.json({ code: 400, msg: '账号或者密码错误~', data: {} });
+    }
+
+    // ③ 永远别把 password 字段返回给前端
+    delete user.password;
+    // 将生成的sessionid返回给前端
+    req.session.user = { username };   // ← 关键一句
+    res.json({ code: 200, msg: '登录成功', data: user });
   } catch (err) {
     console.error('login error', err);
     res.status(500).json({ code: 500, msg: '登录失败', data: {} });
@@ -64,30 +80,28 @@ router.post('/user/login', async (req, res, next) => {
   md5和crypto和base64 ，cookie和session和 JWT  TODO:
 */
 router.post('/user/register', async (req, res, next) => {
-  const { username, password, cname } = req.body;
+  const { username, password } = req.body;
   const findUserSql = `select * from user where username = ?`;
-  const result = await dbquery(findUserSql, [username]);
-  if (result.length > 0) {
-    return res.json({
-      code: 400,
-      msg: '用户已存在',
-      data: []
-    });
-  }
-  const addUserSql = `insert into user (username, password) values (?, ?)`;
-  const addResult = await dbquery(addUserSql, [username, password]);
-  console.log('addresult=', addResult);
-  if (addResult.affectedRows > 0) {
-    res.json({
-      code: 200,
-      msg: '注册成功',
-      data: {}
-    });
+  try {
+    const result = await dbquery(findUserSql, [username]);
+    if (result.length > 0) {
+      return res.json({ code: 400, msg: '用户已存在', data: [] });
+    }
+    const pwd = await hashPwd(password);
+    const addUserSql = `insert into user (username, password) values (?, ?)`;
+    const addResult = await dbquery(addUserSql, [username, pwd]);
+    if (addResult.affectedRows > 0) {
+      return res.json({code: 200, msg: '注册成功', data: {}});
+    }
+    return res.json({code: 500, msg: '注册失败', data: {}});
+  }catch(err) {
+    console.error('register error', err);
+    res.status(500).json({ code: 500, msg: '注册失败', data: {} });
   }
 });
 
 // 修改用户的信息，添加头像，增加昵称，或者邮箱
-router.post('/user/update', upload.any(), async (req, res, next) => {
+router.post('/user/update',requireAuth, upload.any(), async (req, res, next) => {
   try {
     const file = (req.files || []).find(f =>
       ['avatar', 'avater', 'img'].includes(f.fieldname)
@@ -133,5 +147,10 @@ router.post('/user/update', upload.any(), async (req, res, next) => {
     console.error('update user error', err);
     res.status(500).json({ code: 500, msg: '更新失败', data: {} });
   }
+});
+
+// 4. 注销：删 redis 这一行
+router.post('/user/logout', (req, res) => {
+  req.session.destroy(() => res.json({ code: 200, msg: '已退出' }));
 });
 module.exports = router;

@@ -3,7 +3,8 @@ import { message } from 'antd';
 
 const service = axios.create({
   baseURL: '/api', // 后端接口的基础路径
-  timeout: 15000 // 请求超时时间
+  timeout: 15000, // 请求超时时间
+  withCredentials: true   // ← 加上这句，自动带 cookie
 });
 
 service.interceptors.request.use(
