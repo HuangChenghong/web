@@ -3,11 +3,13 @@ import { Form, Input, Button, message, Card, Upload, Avatar } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { UserOutlined, MailOutlined, UploadOutlined } from '@ant-design/icons';
 import './profile.css';
-import { updateUser } from '../api/blog';
+import { updateUser, getUserInfo } from '../api/blog';
+import { useUserStore } from '@/store/useUserStore';
 
 const Profile = () => {
   const [form] = Form.useForm();
   const navigate = useNavigate();
+  const { user, update } = useUserStore();
   const [messageApi, contextHolder] = message.useMessage();
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -15,15 +17,19 @@ const Profile = () => {
   const [fileList, setFileList] = useState([]);
 
   useEffect(() => {
-    const username = localStorage.getItem('username') || '';
-    const avatar = localStorage.getItem('userAvatar') || '';
-    setAvatarUrl(avatar);
-    form.setFieldsValue({
-      username,
-      nickname: localStorage.getItem('userNickname') || '',
-      email: localStorage.getItem('userEmail') || ''
+    const userId = user?.userId || localStorage.getItem('userId');
+    getUserInfo({ userId }).then(res => {
+      if (res.code === 200 && res?.data) {
+        const { avater, username, cname, email } = res.data;
+        setAvatarUrl(avater);
+        form.setFieldsValue({
+          username,
+          cname,
+          email
+        });
+      }
     });
-  }, [form]);
+  }, [form, user]);
 
   const getBase64 = file =>
     new Promise((resolve, reject) => {
@@ -61,7 +67,7 @@ const Profile = () => {
 
     const formData = new FormData();
     formData.append('username', values.username || '');
-    formData.append('cname', values.nickname || '');
+    formData.append('cname', values.cname || '');
     formData.append('email', values.email || '');
 
     if (avatarFile) {
@@ -70,15 +76,19 @@ const Profile = () => {
 
     try {
       const res = await updateUser(formData);
-
       // updateUser 返回的结构为 { code, msg, data }
-      const savedAvatar = res.data?.avatar || res.data?.avater || avatarUrl;
-      if (savedAvatar) {
-        localStorage.setItem('userAvatar', savedAvatar);
+      if (res.code === 200) {
+        // 从接口返回的数据中获取更新后的用户信息
+        const { username, cname, avater } = res.data;
+        update({ username, cname, avater }); // 使用 zustand 更新
+        // 更新本地状态
+        setAvatarUrl(avater);
+        form.setFieldsValue({ username, cname, avater });
+        messageApi.success('个人资料已更新');
+        setTimeout(() => {
+          navigate('/');
+        }, 1000);
       }
-      localStorage.setItem('userNickname', values.nickname || '');
-      localStorage.setItem('userEmail', values.email || '');
-      messageApi.success('个人资料已更新');
     } catch (err) {
       messageApi.error(err?.message || '保存失败，请重试');
     } finally {
@@ -92,19 +102,18 @@ const Profile = () => {
       <Card title='个人中心' className='profile-card'>
         <div className='profile-form-inner'>
           <Form form={form} layout='vertical' onFinish={handleFinish}>
-            <Form.Item label='头像' className='profile-avatar-item'>
-              <div className='profile-avatar-row'>
-                <div className='profile-avatar-preview'>
+            <Form.Item label='头像' className='profile-avater-item'>
+              <div className='profile-avater-row'>
+                <div className='profile-avater-preview'>
                   {avatarUrl ? (
                     <Avatar size={96} src={avatarUrl} />
                   ) : (
                     <Avatar size={96} style={{ backgroundColor: '#8b5cf6' }}>
-                      {(localStorage.getItem('username') ||
-                        'U')[0]?.toUpperCase()}
+                      {(user?.username || 'U')[0]?.toUpperCase()}
                     </Avatar>
                   )}
                 </div>
-                <div className='profile-avatar-actions'>
+                <div className='profile-avater-actions'>
                   <Upload
                     accept='image/*'
                     showUploadList={false}
@@ -115,7 +124,7 @@ const Profile = () => {
                   >
                     <Button icon={<UploadOutlined />}>更换头像</Button>
                   </Upload>
-                  <div className='profile-avatar-hint'>
+                  <div className='profile-avater-hint'>
                     建议 200x200，支持 jpg/png，文件小于 1MB
                   </div>
                 </div>
@@ -131,7 +140,7 @@ const Profile = () => {
             </Form.Item>
 
             <Form.Item
-              name='nickname'
+              name='cname'
               label='昵称'
               tooltip='用于在文章或评论中显示（可选）'
             >
@@ -147,7 +156,12 @@ const Profile = () => {
             </Form.Item>
 
             <Form.Item className='profile-actions'>
-              <Button type='primary' loading={loading} htmlType='submit'>
+              <Button
+                type='primary'
+                style={{ marginRight: '20px' }}
+                loading={loading}
+                htmlType='submit'
+              >
                 保存资料
               </Button>
               <Button onClick={() => navigate(-1)}>返回</Button>

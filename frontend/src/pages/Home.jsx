@@ -1,5 +1,7 @@
 import './home.css';
-import { logoOut } from '@/api/blog'
+import { imgUrl } from '@/utils/imgUrl';
+import { logoOut } from '@/api/blog';
+import { useUserStore } from '@/store/useUserStore';
 import {
   FacebookOutlined,
   LogoutOutlined,
@@ -8,18 +10,18 @@ import {
 } from '@ant-design/icons';
 import { Avatar, Dropdown, Layout, Menu, message } from 'antd';
 import { Outlet, useNavigate } from 'react-router-dom';
-const { Header, Content } = Layout;
-
+const { Content } = Layout;
 
 const Home = () => {
   const navigate = useNavigate();
-  const username = localStorage.getItem('username');
-  const avatar = localStorage.getItem('userAvatar') || '';
+  const { user, logout } = useUserStore();
+  const { username, cname, avater } = user || {};
+
   const [messageApi, contextHolder] = message.useMessage();
 
-  const handleLogout = async() => {
-    await logoOut();   // 真的告诉后端销毁 session
-    localStorage.clear();
+  const handleLogout = async () => {
+    await logoOut(); // 真的告诉后端销毁 session
+    logout(); // 清空 store 和 localStorage
     navigate('/');
     messageApi.success('退出登录！');
   };
@@ -77,9 +79,9 @@ const Home = () => {
               }
             >
               <span className='nav-item nav-item--user nav-item--user-dropdown'>
-                <span>{username}</span>
-                {avatar ? (
-                  <Avatar size='small' src={avatar} />
+                <span>{cname ? cname : username}</span>
+                {avater ? (
+                  <Avatar size='small' src={imgUrl(avater)} />
                 ) : (
                   <Avatar size='small' style={{ backgroundColor: '#8b5cf6' }}>
                     {username?.[0]?.toUpperCase() || 'U'}

@@ -7,9 +7,9 @@ const { dbquery } = require('../db');
  * ========================================================= */
 
 /* GET home page. */
-router.get('/blogs/blog', async (req, res, next) => {
-  const { page, pageSize, title, status } = req.query;
-  const searchVal = `%${title}%`;
+router.get('/', async (req, res, next) => {
+  const { page, pageSize, title, status = '1' } = req.query;
+  const searchVal = title ? `%${title}%` : null;
   const pageNum = parseInt(page) || 1;
   const pageSizeNum = parseInt(pageSize) || 10;
   // 一，这种不行，没有返回发布者的名字，文章列表只保存了用户的id，需要多表查询
@@ -55,7 +55,7 @@ router.get('/blogs/blog', async (req, res, next) => {
 });
 
 // 获取单个文章
-router.get(`/blogs/blog/:id`, async (req, res, next) => {
+router.get(`/:id`, async (req, res, next) => {
   const { id } = req.params;
   const sql = `SELECT * FROM articles WHERE id = ?`;
   try {
@@ -70,7 +70,7 @@ router.get(`/blogs/blog/:id`, async (req, res, next) => {
 });
 
 // 创建一个文章
-router.post(`/blogs/blog/create`, async (req, res, next) => {
+router.post(`/create`, async (req, res, next) => {
   const { title, content, user_id, status } = req.body;
   const sql = `INSERT INTO articles (title, content, user_id, status) VALUES (?, ?, ?,?)`;
   try {
@@ -87,12 +87,11 @@ router.post(`/blogs/blog/create`, async (req, res, next) => {
 });
 
 /* 修改文章  TODO: 要判断作者才能删除自己的文章*/
-router.post(`/blogs/blog/update`, async (req, res, next) => {
-  const { title, content, user_id, status } = req.body;
-  console.log(title, content, user_id, '用户数据');
+router.post(`/update`, async (req, res, next) => {
+  const { title, content, id, status } = req.body;
   const sql = `UPDATE articles SET title = ?, content = ?, status = ? WHERE id = ?`;
   try {
-    const results = await dbquery(sql, [title, content, status, user_id]);
+    const results = await dbquery(sql, [title, content, status, id]);
     console.log(results);
     res.json({ code: 200, msg: 'success', data: results });
   } catch (err) {
@@ -101,20 +100,11 @@ router.post(`/blogs/blog/update`, async (req, res, next) => {
 });
 
 /* 删除文章  TODO: 要判断坐着才能删除自己的文章*/
-router.post(`/blogs/blog/delete`, async (req, res, next) => {
+router.post(`/delete`, async (req, res, next) => {
   const { id } = req.body;
-  console.log(
-    'id/*/*/*/*/*:',
-    id,
-    'req.body:',
-    req.body,
-    'req.query:',
-    req.query
-  );
   const sql = `DELETE FROM articles WHERE id = ?`;
   try {
     const results = await dbquery(sql, [id]);
-    console.log(results);
     res.json({ code: 200, msg: 'success' });
   } catch (err) {
     next(err);

@@ -9,6 +9,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { loginApi, registerApi } from '../api/blog';
+import { useUserStore } from '@/store/useUserStore';
 import './user.css';
 
 /**
@@ -20,11 +21,10 @@ import './user.css';
 const User = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { login } = useUserStore();
 
   // 当前模式：'login' | 'register'。由路由决定，路由变了组件会重渲染自动同步
-  const mode = location.pathname.includes('/register')
-    ? 'register'
-    : 'login';
+  const mode = location.pathname.includes('/register') ? 'register' : 'login';
   const isLogin = mode === 'login';
 
   const [form] = Form.useForm();
@@ -52,10 +52,8 @@ const User = () => {
           password: values.password
         });
         // request 拦截器已经剥过一层 data，业务数据在 res.data
-        const { token, id, username } = res.data || {};
-        if (token) localStorage.setItem('token', token);
-        if (id) localStorage.setItem('userId', String(id));
-        if (username) localStorage.setItem('username', username);
+        const { username } = res.data || {};
+        login(res.data); // 使用 zustand 登录
 
         messageApi.success(`欢迎回来，${username || ''}！`);
         setTimeout(() => navigate('/'), 600);

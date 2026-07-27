@@ -2,9 +2,9 @@ import axios from 'axios';
 import { message } from 'antd';
 
 const service = axios.create({
-  baseURL: '/api', // 后端接口的基础路径
+  baseURL: '/api', // 后端接口的基础路径 ← 所有请求自动加 /api 前缀,本项目不能省略
   timeout: 15000, // 请求超时时间
-  withCredentials: true   // ← 加上这句，自动带 cookie
+  withCredentials: true // ← 加上这句，自动带 cookie
 });
 
 service.interceptors.request.use(
@@ -24,6 +24,7 @@ service.interceptors.response.use(
   response => {
     // 直接剥离一层data，业务页面少写一层
     const res = response.data;
+    console.log('res=', res);
     if (res.code === 200) {
       return res;
     }

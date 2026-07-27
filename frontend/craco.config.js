@@ -12,9 +12,14 @@ module.exports = {
       // 接口转发，不用写setupProxy.js了
       '/api': {
         target: 'http://localhost:8000/', // 代理地址
-        changeOrigin: true,
-        pathRewrite: { '^/api': '' }
+        changeOrigin: true
+        // pathRewrite: { '^/api': '' }
       },
+      // 静态资源
+      '/uploads': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      }
     }
   },
 

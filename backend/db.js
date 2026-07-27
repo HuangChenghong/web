@@ -4,12 +4,13 @@ const mysql = require('mysql2/promise');
 
 // 使用连接池处理连接,  连接池只初始化一次（全局单例，只创建1个池）,那个配置也可以单独拿出来，根据环境来配置
 const isProd = process.env.NODE_ENV === 'production';
+console.log('isProd=', isProd);
 const pool = mysql.createPool({
-  host: isProd ? process.env.DB_HOST : '127.0.0.1',        // 来自 .env：mysql
-  user: isProd ? process.env.DB_USER : 'root',        // 来自 .env：myapp_user
-  password: isProd ? process.env.DB_PASSWORD : '123456',// 来自 .env
-  port: isProd ? process.env.DB_PORT : 3308,        // 来自 .env：3306
-  database: isProd ? process.env.DB_NAME : 'blog',    // 来自 .env：blog
+  host: isProd ? process.env.DB_HOST : '127.0.0.1', // 来自 .env：mysql
+  user: isProd ? process.env.DB_USER : 'root', // 来自 .env：myapp_user
+  password: isProd ? process.env.DB_PASSWORD : '123456', // 来自 .env
+  port: isProd ? process.env.DB_PORT : 3308, // 来自 .env：3306
+  database: isProd ? process.env.DB_NAME : 'blog', // 来自 .env：blog
   waitForConnections: true,
   connectionLimit: 10,
   maxIdle: 10,
