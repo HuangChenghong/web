@@ -1,8 +1,7 @@
 /* === 登录/注册 二合一页面 === */
 
 .auth-page {
-  /* 占满 Content 区，垂直水平居中卡片 */
-  min-height: calc(100vh - 56px - 56px); /* 视高 - Header - Footer 约值 */
+  min-height: calc(100vh - 56px - 56px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -17,10 +16,11 @@
   width: 100%;
   max-width: 420px;
   padding: 36px 32px 28px;
-  background: #ffffff;
-  border: 1px solid var(--border, #eef1f6);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
   border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 40px var(--theme-shadow);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 /* 顶部品牌区 */
@@ -37,7 +37,7 @@
   height: 52px;
   margin-bottom: 12px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-secondary) 100%);
   color: #ffffff;
   font-size: 24px;
   box-shadow: 0 6px 18px rgba(59, 130, 246, 0.32);
@@ -46,24 +46,27 @@
 .auth-card__title {
   font-size: 22px;
   font-weight: 600;
-  color: var(--text-strong, #0f172a);
+  color: var(--theme-text-strong);
   margin: 0 0 6px;
   letter-spacing: 0.3px;
+  transition: color 0.3s ease;
 }
 
 .auth-card__subtitle {
   font-size: 13.5px;
-  color: var(--text-faint, #94a3b8);
+  color: var(--theme-text-faint);
   margin: 0;
+  transition: color 0.3s ease;
 }
 
 /* === Tab 切换：登录 / 注册 === */
 .auth-tabs {
   display: flex;
-  background: #f1f5f9;
+  background: var(--theme-background);
   border-radius: 10px;
   padding: 4px;
   margin-bottom: 22px;
+  transition: background 0.3s ease;
 }
 
 .auth-tabs__item {
@@ -71,7 +74,7 @@
   text-align: center;
   padding: 8px 0;
   font-size: 14px;
-  color: var(--text-muted, #64748b);
+  color: var(--theme-text-muted);
   border-radius: 7px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -79,19 +82,19 @@
 }
 
 .auth-tabs__item:hover {
-  color: var(--text-strong, #0f172a);
+  color: var(--theme-text-strong);
 }
 
 .auth-tabs__item--active {
-  background: #ffffff;
-  color: var(--brand-deep, #2563eb);
+  background: var(--theme-surface);
+  color: var(--theme-primary-deep);
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
 }
 
 /* === 表单输入框 icon 颜色 === */
 .auth-input-icon {
-  color: var(--text-faint, #94a3b8);
+  color: var(--theme-text-faint);
 }
 
 /* === 提交按钮 === */
@@ -100,7 +103,7 @@
   font-size: 15px !important;
   font-weight: 500;
   letter-spacing: 1px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-deep) 100%) !important;
   border: none !important;
   box-shadow: 0 4px 14px rgba(59, 130, 246, 0.28);
   margin-top: 6px;
@@ -116,19 +119,22 @@
   margin-top: 18px;
   text-align: center;
   font-size: 13px;
-  color: var(--text-muted, #64748b);
+  color: var(--theme-text-muted);
 }
 
-.auth-footer a {
-  color: var(--brand-deep, #2563eb);
+.auth-footer button {
+  color: var(--theme-primary-deep);
   margin-left: 6px;
   cursor: pointer;
   font-weight: 500;
   transition: color 0.18s;
+  border: none;
+  background: transparent;
+  font-size: inherit;
 }
 
-.auth-footer a:hover {
-  color: var(--brand, #3b82f6);
+.auth-footer button:hover {
+  color: var(--theme-primary);
   text-decoration: underline;
 }
 

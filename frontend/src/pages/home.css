@@ -5,25 +5,7 @@
   flex-direction: column;
 }
 
-/* === 主题色 === */
-/* 把蓝定成 CSS 变量，全局复用，避免到处散落 */
-:root {
-  --brand: #3b82f6;
-  --brand-deep: #2563eb;
-  --brand-soft: #eff6ff;
-  --bg-app: #f5f7fb;       /* 页面背景：极淡蓝灰，比纯灰更柔和 */
-  --surface: #ffffff;
-  --border: #eef1f6;
-  --text-strong: #0f172a;
-  --text-muted: #64748b;
-  --text-faint: #94a3b8;
-}
-
-body {
-  background: var(--bg-app);
-}
-
-/* === Header：磨砂玻璃 + 品牌蓝渐变 === */
+/* === Header：磨砂玻璃 + 主题渐变 === */
 header {
   display: flex;
   justify-content: space-between;
@@ -31,11 +13,12 @@ header {
   padding: 18px 50px;
   color: #fff;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-secondary) 100%);
   box-shadow: 0 4px 16px rgba(59, 130, 246, 0.18);
   position: sticky;
   top: 0;
   z-index: 10;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
 h1 {
@@ -54,7 +37,7 @@ h1:hover {
 }
 
 .blog-title {
-  margin-left: 0;          /* 跟 h1 的 gap 统一管理 */
+  margin-left: 0;
 }
 
 /* Header 右上角登录/注册 */
@@ -79,7 +62,16 @@ h1:hover {
   background: rgba(255, 255, 255, 0.18);
 }
 
-/* 已登录用户名：前面带个绿点表示"在线" */
+/* 主题切换按钮 */
+.nav-item--theme {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-item--theme:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 已登录用户名 */
 .nav-item--user {
   display: inline-flex;
   align-items: center;
@@ -97,7 +89,7 @@ h1:hover {
 }
 
 .nav-item--user .ant-avatar {
-  background: #8b5cf6;
+  background: var(--theme-secondary);
   font-weight: 600;
 }
 
@@ -110,7 +102,7 @@ h1:hover {
   flex-shrink: 0;
 }
 
-/* 退出按钮：hover 时变红色提示危险 */
+/* 退出按钮 */
 .nav-item--logout {
   font-size: 13px;
   opacity: 0.85;
@@ -130,14 +122,47 @@ h1:hover {
   background: transparent;
 }
 
-/* === Footer：极简 === */
+/* === Footer === */
 .app-footer {
   flex-shrink: 0;
   padding: 18px 0;
   text-align: center;
   font-size: 13px;
-  color: var(--text-faint);
+  color: var(--theme-text-faint);
   background: transparent;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--theme-border);
   letter-spacing: 0.3px;
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+/* 主题指示器 */
+.theme-indicator {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.theme-active .theme-indicator {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5), 0 0 0 4px var(--theme-primary);
+}
+
+/* 小屏适配 */
+@media (max-width: 768px) {
+  header {
+    padding: 14px 20px;
+  }
+
+  h1 {
+    font-size: 16px;
+  }
+
+  .nav-item span:last-child {
+    display: none;
+  }
+
+  .nav-item--user-dropdown span:first-child {
+    display: none;
+  }
 }

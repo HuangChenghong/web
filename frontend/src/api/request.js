@@ -41,9 +41,17 @@ service.interceptors.response.use(
 
     switch (status) {
       case 401:
-        message.error('登录已过期，请重新登录');
+        // ⚠️ 注意：路由守卫已经挡住了大多数 401（未登录根本进不来页面）
+        // 走到这里通常意味着：cookie 过期但 localStorage 还在，或守卫漏掉了的请求
+        // 所以静默清理 + 跳登录页，不弹错误（避免一闪而过的红字）
         localStorage.removeItem('token');
-        window.location.href = '/login';
+        // 用 hash 跳转，避免硬刷新（保留 SPA 状态）
+        if (window.location.pathname !== '/login') {
+          window.location.replace('/login');
+        }
+        break;
+      case 403:
+        message.error('没有权限');
         break;
       case 404:
         message.error('请求的资源不存在');

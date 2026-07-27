@@ -8,11 +8,12 @@
 
 /* === 卡片 === */
 .editor-card {
-  background: #ffffff;
-  border: 1px solid var(--border, #eef1f6);
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
   border-radius: 14px;
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 4px 20px var(--theme-shadow);
   overflow: hidden;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 /* === 顶部标题栏 === */
@@ -22,8 +23,9 @@
   justify-content: space-between;
   gap: 16px;
   padding: 22px 28px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border-bottom: 1px solid var(--border, #eef1f6);
+  background: linear-gradient(135deg, var(--theme-surface) 0%, var(--theme-background) 100%);
+  border-bottom: 1px solid var(--theme-border);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .editor-card__title-group {
@@ -39,7 +41,7 @@
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-secondary) 100%);
   color: #ffffff;
   font-size: 18px;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.28);
@@ -49,15 +51,17 @@
 .editor-card__title {
   font-size: 19px;
   font-weight: 600;
-  color: var(--text-strong, #0f172a);
+  color: var(--theme-text-strong);
   margin: 0 0 2px;
   letter-spacing: 0.3px;
+  transition: color 0.3s ease;
 }
 
 .editor-card__subtitle {
   font-size: 13px;
-  color: var(--text-faint, #94a3b8);
+  color: var(--theme-text-faint);
   margin: 0;
+  transition: color 0.3s ease;
 }
 
 /* 右上角徽标 */
@@ -66,8 +70,8 @@
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #fef3c7;
-  color: #b45309;
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--theme-warning);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.3px;
@@ -84,12 +88,13 @@
   align-items: center;
   gap: 6px;
   font-weight: 500;
-  color: var(--text-strong, #0f172a);
+  color: var(--theme-text-strong);
   font-size: 13.5px;
+  transition: color 0.3s ease;
 }
 
 .editor-form__label .anticon {
-  color: var(--brand, #3b82f6);
+  color: var(--theme-primary);
 }
 
 /* 标题输入框 */
@@ -98,21 +103,27 @@
   font-size: 16px;
   font-weight: 500;
   border-radius: 8px;
+  border-color: var(--theme-border);
+  background: var(--theme-background);
+  color: var(--theme-text-strong);
 }
 
 .editor-form__title-input.ant-input:focus,
 .editor-form__title-input.ant-input:hover {
-  border-color: var(--brand, #3b82f6);
+  border-color: var(--theme-primary);
 }
 
 /* 分类下拉 */
 .editor-form__category .ant-select-selector {
   height: 42px !important;
   border-radius: 8px !important;
+  border-color: var(--theme-border) !important;
+  background: var(--theme-background) !important;
 }
 
 .editor-form__category .ant-select-selection-item {
   line-height: 40px !important;
+  color: var(--theme-text-strong);
 }
 
 /* 正文 */
@@ -122,11 +133,14 @@
   line-height: 1.75;
   resize: none;
   font-family: inherit;
+  border-color: var(--theme-border);
+  background: var(--theme-background);
+  color: var(--theme-text-strong);
 }
 
 .editor-form__content.ant-input:focus,
 .editor-form__content.ant-input:hover {
-  border-color: var(--brand, #3b82f6);
+  border-color: var(--theme-primary);
 }
 
 /* === 底部操作栏 === */
@@ -137,7 +151,8 @@
   gap: 12px;
   margin-top: 8px;
   padding-top: 18px;
-  border-top: 1px dashed var(--border, #eef1f6);
+  border-top: 1px dashed var(--theme-border);
+  transition: border-color 0.3s ease;
 }
 
 .editor-form__actions-right {
@@ -153,30 +168,32 @@
 
 /* 取消按钮：幽灵风格 */
 .editor-form__btn--cancel {
-  color: var(--text-muted, #64748b);
+  color: var(--theme-text-muted);
+  background: transparent;
+  border-color: var(--theme-border);
 }
 
 .editor-form__btn--cancel:hover {
-  color: var(--text-strong, #0f172a);
-  border-color: #cbd5e1;
+  color: var(--theme-text-strong);
+  border-color: var(--theme-text-muted);
 }
 
-/* 保存草稿：浅蓝边框 */
+/* 保存草稿 */
 .editor-form__btn--draft {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  color: #2563eb;
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: var(--theme-primary);
 }
 
 .editor-form__btn--draft:hover {
-  background: #dbeafe;
-  border-color: #93c5fd;
-  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--theme-primary);
+  color: var(--theme-primary-deep);
 }
 
-/* 发布：主操作渐变蓝 */
+/* 发布：主操作渐变 */
 .editor-form__btn--submit.ant-btn-primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-deep) 100%) !important;
   border: none !important;
   box-shadow: 0 3px 10px rgba(59, 130, 246, 0.28);
 }

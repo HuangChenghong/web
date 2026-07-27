@@ -2,13 +2,17 @@ import './home.css';
 import { imgUrl } from '@/utils/imgUrl';
 import { logoOut } from '@/api/blog';
 import { useUserStore } from '@/store/useUserStore';
+import { useThemeStore, themes } from '@/store/useThemeStore';
 import {
   FacebookOutlined,
   LogoutOutlined,
   UserOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  EyeOutlined,
+  BookFilled,
+  SkinOutlined
 } from '@ant-design/icons';
-import { Avatar, Dropdown, Layout, Menu, message } from 'antd';
+import { Avatar, Dropdown, Layout, message } from 'antd';
 import { Outlet, useNavigate } from 'react-router-dom';
 const { Content } = Layout;
 
@@ -16,6 +20,7 @@ const Home = () => {
   const navigate = useNavigate();
   const { user, logout } = useUserStore();
   const { username, cname, avater } = user || {};
+  const { currentTheme, setTheme } = useThemeStore();
 
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -36,6 +41,31 @@ const Home = () => {
         </h1>
 
         <div className='nav'>
+          {/* 主题切换 */}
+          <Dropdown
+            trigger={['click']}
+            placement='bottomRight'
+            menu={{
+              onClick: ({ key }) => setTheme(key),
+              items: Object.entries(themes).map(([key, theme]) => ({
+                key,
+                label: theme.name,
+                icon: (
+                  <span
+                    className='theme-indicator'
+                    style={{ backgroundColor: theme.primary }}
+                  />
+                ),
+                className: currentTheme === key ? 'theme-active' : ''
+              }))
+            }}
+          >
+            <span className='nav-item nav-item--theme'>
+              <SkinOutlined />
+              <span>换肤</span>
+            </span>
+          </Dropdown>
+
           {!username ? (
             <>
               <span className='nav-item' onClick={() => navigate('/login')}>
@@ -49,34 +79,44 @@ const Home = () => {
             <Dropdown
               trigger={['click']}
               placement='bottomRight'
-              overlay={
-                <Menu
-                  onClick={({ key }) => {
-                    if (key === 'profile') navigate('/profile');
-                    if (key === 'drafts') navigate('/drafts');
-                    if (key === 'logout') handleLogout();
-                  }}
-                  items={[
-                    {
-                      key: 'profile',
-                      icon: <UserOutlined />,
-                      label: '个人中心'
-                    },
-                    {
-                      key: 'drafts',
-                      icon: <FileTextOutlined />,
-                      label: '我的草稿'
-                    },
-                    { type: 'divider' },
-                    {
-                      key: 'logout',
-                      danger: true,
-                      icon: <LogoutOutlined />,
-                      label: '退出登录'
-                    }
-                  ]}
-                />
-              }
+              menu={{
+                onClick: ({ key }) => {
+                  if (key === 'profile') navigate('/profile');
+                  if (key === 'drafts') navigate('/drafts');
+                  if (key === 'views') navigate('/my-views');
+                  if (key === 'collections') navigate('/my-collections');
+                  if (key === 'logout') handleLogout();
+                },
+                items: [
+                  {
+                    key: 'profile',
+                    icon: <UserOutlined />,
+                    label: '个人中心'
+                  },
+                  {
+                    key: 'drafts',
+                    icon: <FileTextOutlined />,
+                    label: '我的草稿'
+                  },
+                  {
+                    key: 'views',
+                    icon: <EyeOutlined />,
+                    label: '我的浏览'
+                  },
+                  {
+                    key: 'collections',
+                    icon: <BookFilled />,
+                    label: '我的收藏'
+                  },
+                  { type: 'divider' },
+                  {
+                    key: 'logout',
+                    danger: true,
+                    icon: <LogoutOutlined />,
+                    label: '退出登录'
+                  }
+                ]
+              }}
             >
               <span className='nav-item nav-item--user nav-item--user-dropdown'>
                 <span>{cname ? cname : username}</span>

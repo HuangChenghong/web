@@ -193,12 +193,12 @@ const User = () => {
           {isLogin ? (
             <span>
               还没有账号？
-              <a onClick={() => switchMode('register')}>立即注册</a>
+              <button onClick={() => switchMode('register')}>立即注册</button>
             </span>
           ) : (
             <span>
               已有账号？
-              <a onClick={() => switchMode('login')}>返回登录</a>
+              <button onClick={() => switchMode('login')}>返回登录</button>
             </span>
           )}
         </div>

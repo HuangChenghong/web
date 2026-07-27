@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { dbquery } = require('../db');
+const { requireAuth } = require('../middleware/auth');
 
 /* =========================================================
  * 文章 CRUD
@@ -57,7 +58,7 @@ router.get('/', async (req, res, next) => {
 // 获取单个文章
 router.get(`/:id`, async (req, res, next) => {
   const { id } = req.params;
-  const sql = `SELECT * FROM articles WHERE id = ?`;
+  const sql = `SELECT * FROM articles WHERE id = ? AND status=1`;
   try {
     const results = await dbquery(sql, [id]);
     if (results.length === 0) {
@@ -70,8 +71,12 @@ router.get(`/:id`, async (req, res, next) => {
 });
 
 // 创建一个文章
-router.post(`/create`, async (req, res, next) => {
+router.post(`/create`, requireAuth, async (req, res, next) => {
   const { title, content, user_id, status } = req.body;
+  // 判断只能当前登录用户才能创建文章
+  if (user_id !== req.user.id) {
+    return res.status(403).json({ code: 403, msg: '您没有权限创建文章' });
+  }
   const sql = `INSERT INTO articles (title, content, user_id, status) VALUES (?, ?, ?,?)`;
   try {
     const results = await dbquery(sql, [title, content, user_id, status]);
@@ -86,11 +91,21 @@ router.post(`/create`, async (req, res, next) => {
   }
 });
 
-/* 修改文章  TODO: 要判断作者才能删除自己的文章*/
-router.post(`/update`, async (req, res, next) => {
+/* 修改文章  TODO: 要判断作者才能修改自己的文章*/
+router.post(`/update`, requireAuth, async (req, res, next) => {
   const { title, content, id, status } = req.body;
-  const sql = `UPDATE articles SET title = ?, content = ?, status = ? WHERE id = ?`;
   try {
+    // 检查文章是否存在
+    const searchSql = `SELECT * FROM articles WHERE id = ?`;
+    const article = await dbquery(searchSql, [id]);
+    if (article.length === 0) {
+      return res.status(404).json({ code: 404, msg: '文章未找到' });
+    }
+    // 检查作者是否匹配
+    if (article[0].user_id !== req.user.id) {
+      return res.status(403).json({ code: 403, msg: '您没有权限修改该文章' });
+    }
+    const sql = `UPDATE articles SET title = ?, content = ?, status = ? WHERE id = ?`;
     const results = await dbquery(sql, [title, content, status, id]);
     console.log(results);
     res.json({ code: 200, msg: 'success', data: results });
@@ -99,12 +114,22 @@ router.post(`/update`, async (req, res, next) => {
   }
 });
 
-/* 删除文章  TODO: 要判断坐着才能删除自己的文章*/
-router.post(`/delete`, async (req, res, next) => {
+/* 删除文章  TODO: 要判断作者才能删除自己的文章*/
+router.post(`/delete`, requireAuth, async (req, res, next) => {
   const { id } = req.body;
+  // 检查文章是否存在
+  const searchSql = `SELECT * FROM articles WHERE id = ?`;
+  const article = await dbquery(searchSql, [id]);
+  if (article.length === 0) {
+    return res.status(404).json({ code: 404, msg: '文章未找到' });
+  }
+  // 检查作者是否匹配
+  if (article[0].user_id !== req.user.id) {
+    return res.status(403).json({ code: 403, msg: '您没有权限删除该文章' });
+  }
   const sql = `DELETE FROM articles WHERE id = ?`;
   try {
-    const results = await dbquery(sql, [id]);
+    await dbquery(sql, [id]);
     res.json({ code: 200, msg: 'success' });
   } catch (err) {
     next(err);

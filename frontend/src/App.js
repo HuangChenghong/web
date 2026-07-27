@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Detail from './pages/Detail';
 import BlogList from './pages/BlogList';
@@ -6,10 +7,21 @@ import User from './pages/User';
 import ArticleEditor from './pages/ArticleEditor';
 import Profile from './pages/Profile';
 import Drafts from './pages/Drafts';
+import MyViews from './pages/MyViews';
+import MyCollections from './pages/MyCollections';
 import NotFound from './pages/NotFound';
+import RequireAuth from './components/RequireAuth';
+import { useThemeStore } from './store/useThemeStore';
+import './styles/theme.css';
 import './App.css';
 
 function App() {
+  const currentTheme = useThemeStore(state => state.currentTheme);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', currentTheme);
+  }, [currentTheme]);
+
   return (
     <Router>
       <Routes>
@@ -19,14 +31,18 @@ function App() {
           <Route index element={<BlogList />} />
           {/* 子路由1：/detail/:id 详情页 */}
           <Route path='detail/:id' element={<Detail />} />
-          {/* 子路由2：/用户登录页 */}
-          <Route path='/register' element={<User />} />
-          <Route path='/login' element={<User />} />
-          {/* 子路由3：/publish 发布文章 */}
-          <Route path='/publish' element={<ArticleEditor />} />
-          <Route path='/publishEdit/:id' element={<ArticleEditor />} />
-          <Route path='profile' element={<Profile />} />
-          <Route path='drafts' element={<Drafts />} />
+          {/* 子路由2：/用户登录页（公开，相对路径才能走 Home 的 Outlet） */}
+          <Route path='register' element={<User />} />
+          <Route path='login' element={<User />} />
+          {/* 子路由3+：需要登录的页面，全部走 RequireAuth 守卫 */}
+          <Route element={<RequireAuth />}>
+            <Route path='publish' element={<ArticleEditor />} />
+            <Route path='publishEdit/:id' element={<ArticleEditor />} />
+            <Route path='profile' element={<Profile />} />
+            <Route path='drafts' element={<Drafts />} />
+            <Route path='my-views' element={<MyViews />} />
+            <Route path='my-collections' element={<MyCollections />} />
+          </Route>
           <Route path='*' element={<NotFound />} />
         </Route>
 

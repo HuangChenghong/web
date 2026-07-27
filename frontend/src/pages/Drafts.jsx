@@ -45,8 +45,7 @@ const Drafts = () => {
     }
   };
 
-  // 删除单篇文章
-  const handleDelete = async id => {};
+  
 
   return (
     <div className='drafts-page'>

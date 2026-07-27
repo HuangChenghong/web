@@ -75,7 +75,12 @@ router.post('/login', async (req, res, next) => {
     // ③ 永远别把 password 字段返回给前端
     delete user.password;
     // 将生成的sessionid返回给前端 里面自动给我们执行了res.setCookie = 'username'
-    req.session.user = { username }; // ← 关键一句
+    req.session.user = {
+      id: user.id, // ✅ 顺手存 id（之前只存了 username，下游用不上）
+      username
+    };
+    // ✅ 记录登录时间，用于强制重新登录（绝对上限）
+    req.session.loginAt = Date.now();
     res.json({ code: 200, msg: '登录成功', data: user });
   } catch (err) {
     console.error('login error', err);
@@ -213,20 +218,30 @@ router.post('/update', requireAuth, upload.any(), async (req, res, next) => {
   }
 });
 
-// 4. 退出登录：删 redis + 清浏览器 cookie（两边都得清）
-router.post('/logout', (req, res) => {
+// 4. 退出登录：删 redis session + 清浏览器 cookie（两边都得清）
+router.post('/logout', requireAuth, (req, res) => {
+  // 走到这里说明 requireAuth 已通过，req.user 一定有
+  console.log(`[logout] user ${req.user.username} 退出`);
+
   req.session.destroy(err => {
     if (err) {
-      console.error('logout error', err);
-      return res.status(500).json({ code: 500, msg: '退出失败' });
+      console.error('[logout] session destroy error:', err);
+      // ✅ 防御性清 cookie：即使 Redis 删失败，也把浏览器侧 cookie 清掉
+      // 否则前端状态和服务端状态会不一致，下一次刷新又"复活"
+      res.clearCookie('connect.sid');
+      return res.status(500).json({
+        code: 500,
+        msg: '退出失败，请重试',
+        data: null
+      });
     }
     res.clearCookie('connect.sid'); // ← 关键：让浏览器删 cookie
-    res.json({ code: 200, msg: '已退出' });
+    res.json({ code: 200, msg: '已退出', data: null });
   });
 });
 
 // 5. 获取用户信息接口
-router.get('/userInfo', async (req, res) => {
+router.get('/userInfo', requireAuth, async (req, res) => {
   const { userId } = req.query;
   const userInfoSql = `select * from user where id = ?`;
   try {

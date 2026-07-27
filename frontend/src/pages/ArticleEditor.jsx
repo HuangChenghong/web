@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Button, message } from 'antd';
+import { Form, Input, Button, message, Select } from 'antd';
 import { Editor } from '@wangeditor/editor-for-react';
 import { createToolbar } from '@wangeditor/editor';
 import '@wangeditor/editor/dist/css/style.css';
@@ -15,6 +15,16 @@ import { addBlog, getBlogDetail, editBlog } from '@/api/blog';
 
 import './article-editor.css';
 
+// 分类列表
+const categories = [
+  { value: '技术', label: '技术' },
+  { value: '生活', label: '生活' },
+  { value: '随笔', label: '随笔' },
+  { value: '教程', label: '教程' },
+  { value: '分享', label: '分享' },
+  { value: '其他', label: '其他' }
+];
+
 /**
  * 发布文章页面（纯 UI，逻辑由你接）
  *
@@ -27,6 +37,7 @@ import './article-editor.css';
 const ArticleEditor = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [category, setCategory] = useState('随笔');
   // const articleId state not used
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -122,6 +133,7 @@ const ArticleEditor = () => {
     const data = {
       title,
       content,
+      category,
       status: isDraft ? 2 : 1,
       user_id: localStorage.getItem('userId')
     };
@@ -188,7 +200,7 @@ const ArticleEditor = () => {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, messageApi]);
 
   return (
     <div className='editor-page'>
@@ -247,27 +259,22 @@ const ArticleEditor = () => {
               />
             </Form.Item>
 
-            {/* 分类（仅 UI 展示，后续可改成下拉数据） TODO, 后端需要加字段*/}
-            {/* <Form.Item
-            label={
-              <span className='editor-form__label'>
-                <TagsOutlined /> 文章分类
-              </span>
-            }
-            name='category'
-            initialValue='随笔'
-          >
-            <Select
-              size='large'
-              options={[
-                { value: '随笔', label: '随笔' },
-                { value: '技术', label: '技术' },
-                { value: '生活', label: '生活' },
-                { value: '教程', label: '教程' }
-              ]}
-              className='editor-form__category'
-            />
-          </Form.Item> */}
+            {/* 文章分类 */}
+            <Form.Item
+              label={
+                <span className='editor-form__label'>
+                  <TagsOutlined /> 文章分类
+                </span>
+              }
+            >
+              <Select
+                size='large'
+                value={category}
+                onChange={value => setCategory(value)}
+                options={categories}
+                className='editor-form__category'
+              />
+            </Form.Item>
 
             {/* 正文 */}
             <Form.Item

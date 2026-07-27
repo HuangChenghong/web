@@ -1,0 +1,148 @@
+/* 我的浏览页面 */
+.my-views {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.my-views__header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.my-views__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--theme-text-strong);
+  margin: 0 0 8px;
+  transition: color 0.3s ease;
+}
+
+.my-views__subtitle {
+  font-size: 14px;
+  color: var(--theme-text-faint);
+  margin: 0;
+}
+
+/* 空状态 */
+.my-views__empty {
+  text-align: center;
+  padding: 80px 0;
+}
+
+.my-views__empty-icon {
+  font-size: 48px;
+  color: var(--theme-text-faint);
+  margin-bottom: 16px;
+}
+
+.my-views__empty p {
+  font-size: 15px;
+  color: var(--theme-text-faint);
+  margin: 0 0 16px;
+}
+
+.my-views__empty-btn {
+  padding: 8px 24px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--theme-primary) 0%, var(--theme-primary-deep) 100%);
+  color: #ffffff;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.18s;
+  box-shadow: 0 2px 8px var(--theme-shadow);
+}
+
+.my-views__empty-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--theme-shadow-hover);
+}
+
+/* 列表 */
+.my-views__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.my-views__item {
+  padding: 20px;
+  margin-bottom: 12px;
+  background: var(--theme-surface);
+  border-radius: 10px;
+  border: 1px solid var(--theme-border);
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.my-views__item:hover {
+  border-color: var(--theme-primary);
+  box-shadow: 0 4px 12px var(--theme-shadow);
+  transform: translateY(-2px);
+}
+
+.my-views__item-content {
+  flex: 1;
+}
+
+.my-views__item-header {
+  margin-bottom: 8px;
+}
+
+.my-views__item-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--theme-text-strong);
+  margin: 0 0 12px;
+  line-height: 1.5;
+  transition: color 0.3s ease;
+}
+
+.my-views__item:hover .my-views__item-title {
+  color: var(--theme-primary);
+}
+
+.my-views__item-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--theme-text-faint);
+}
+
+.my-views__item-author {
+  font-weight: 500;
+  color: var(--theme-text-muted);
+}
+
+.my-views__item-date {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.my-views__item-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 小屏适配 */
+@media (max-width: 768px) {
+  .my-views__title {
+    font-size: 20px;
+  }
+
+  .my-views__item {
+    padding: 16px;
+  }
+
+  .my-views__item-title {
+    font-size: 15px;
+  }
+}
