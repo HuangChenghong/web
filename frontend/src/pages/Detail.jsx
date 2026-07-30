@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { getBlogDetail } from '@/api/blog';
+import {
+  getBlogDetail,
+  collectBlog,
+  cancelCollect,
+  getViewNum,
+  likeBlog,
+  cancelLike,
+  getSimilarBlogs
+} from '@/api/blog';
 import {
   HeartOutlined,
   HeartFilled,
@@ -9,50 +17,13 @@ import {
   BookFilled,
   MessageOutlined,
   LikeOutlined,
-  FolderOutlined
+  FolderOutlined,
+  LeftOutlined
 } from '@ant-design/icons';
-import { Avatar, Input, Tag } from 'antd';
+import { Avatar, Input, Tag, message } from 'antd';
 import { imgUrl } from '@/utils/imgUrl';
+import { formatDate } from '@/utils/common';
 import './detail.css';
-
-// 格式化发布时间
-const formatDate = value => {
-  if (!value) return '刚刚';
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return '刚刚';
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-// 模拟相似博客数据
-const mockSimilarBlogs = [
-  {
-    id: 1,
-    title: 'React Hooks 入门指南',
-    category: '技术',
-    likes: 128,
-    views: 2341
-  },
-  {
-    id: 2,
-    title: 'Node.js 异步编程最佳实践',
-    category: '技术',
-    likes: 96,
-    views: 1892
-  },
-  {
-    id: 3,
-    title: '前端性能优化技巧总结',
-    category: '分享',
-    likes: 256,
-    views: 4532
-  }
-];
 
 // 模拟评论数据
 const mockComments = [
@@ -63,22 +34,6 @@ const mockComments = [
     content: '写得很好，受益匪浅！',
     createdAt: '2026-07-26 15:30',
     likes: 12
-  },
-  {
-    id: 2,
-    username: '李四',
-    avater: '',
-    content: '感谢分享，期待更多文章！',
-    createdAt: '2026-07-26 16:45',
-    likes: 8
-  },
-  {
-    id: 3,
-    username: '王五',
-    avater: '',
-    content: '这个知识点很实用，已经收藏了',
-    createdAt: '2026-07-26 18:20',
-    likes: 15
   }
 ];
 
@@ -94,67 +49,89 @@ const Detail = () => {
   const [likes, setLikes] = useState(0);
   const [views, setViews] = useState(0);
   const [comments, setComments] = useState([]);
+  const [similarBlogs, setSimilarBlogs] = useState([]);
   const [commentInput, setCommentInput] = useState('');
+  const [messageApi, contextHolder] = message.useMessage();
 
   const fetchBlogDetail = async () => {
     try {
-      const response = await getBlogDetail(id);
-      setBlogDetail(response.data);
-      setLikes(response.data.likes || 0);
-      setViews(response.data.views || 0);
-      const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
-      const collectedPosts = JSON.parse(
-        localStorage.getItem('collectedPosts') || '[]'
-      );
-      setIsLiked(likedPosts.includes(id));
-      setIsCollected(collectedPosts.includes(id));
+      const { data } = await getBlogDetail(id);
+      const isCollect = data.collectUserId !== null && data.collectUserId !== undefined;
+      const isLike = data.likeUserId !== null && data.likeUserId !== undefined;
+      setBlogDetail(data);
+      setLikes(data.likes || 0);
+      setViews(data.views || 0);
+      setIsLiked(isLike);
+      setIsCollected(isCollect);
+      fetchSimilarBlogs(data);
     } catch (error) {
       console.error('获取博客详情失败:', error);
     }
   };
 
   useEffect(() => {
+    handleView();
     fetchBlogDetail();
     setComments(mockComments);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // 点赞功能
-  const handleLike = () => {
-    const newLiked = !isLiked;
-    setIsLiked(newLiked);
-    setLikes(prev => (newLiked ? prev + 1 : prev - 1));
-    const likedPosts = JSON.parse(localStorage.getItem('likedPosts') || '[]');
-    if (newLiked) {
-      likedPosts.push(id);
-    } else {
-      const index = likedPosts.indexOf(id);
-      if (index > -1) likedPosts.splice(index, 1);
+  // 获取相似文章列表
+  const fetchSimilarBlogs = async params => {
+    try {
+      const { data } = await getSimilarBlogs({ id, category_id: params.category_id });
+      setSimilarBlogs(data || []);
+    } catch (error) {
+      console.error('获取相似文章列表失败:', error);
     }
-    localStorage.setItem('likedPosts', JSON.stringify(likedPosts));
+  };
+
+  // 统计浏览量
+  const handleView = async () => {
+    try {
+      const response = await getViewNum({ id });
+      if (response.code === 200) {
+        console.log('浏览量+++');
+      }
+    } catch (error) {
+      console.error('获取浏览量失败:', error);
+    }
+  };
+
+  // 点赞功能
+  const handleLike = async () => {
+    try {
+      const data = { id, userId: localStorage.getItem('userId') };
+      const response = !isLiked ? await likeBlog(data) : await cancelLike(data);
+      if (response.code === 200) {
+        const newLiked = !isLiked;
+        setIsLiked(newLiked);
+        messageApi.success(newLiked ? '点赞成功' : '取消点赞');
+      }
+    } catch (error) {
+      console.error('点赞博客失败:', error);
+    }
   };
 
   // 收藏功能
-  const handleCollect = () => {
-    const newCollected = !isCollected;
-    setIsCollected(newCollected);
-    const collectedPosts = JSON.parse(
-      localStorage.getItem('collectedPosts') || '[]'
-    );
-    if (newCollected) {
-      collectedPosts.push(id);
-    } else {
-      const index = collectedPosts.indexOf(id);
-      if (index > -1) collectedPosts.splice(index, 1);
+  const handleCollect = async () => {
+    try {
+      const data = { id, userId: localStorage.getItem('userId') };
+      const response = !isCollected ? await collectBlog(data) : await cancelCollect(data);
+      console.log(response);
+      if (response.code === 200) {
+        const newCollected = !isCollected;
+        setIsCollected(newCollected);
+        messageApi.success(newCollected ? '收藏成功' : '取消收藏');
+      }
+    } catch (error) {
+      console.error('收藏博客失败:', error);
     }
-    localStorage.setItem('collectedPosts', JSON.stringify(collectedPosts));
   };
 
   // 评论点赞
   const handleCommentLike = commentId => {
-    setComments(prev =>
-      prev.map(c => (c.id === commentId ? { ...c, likes: c.likes + 1 } : c))
-    );
+    setComments(prev => prev.map(c => (c.id === commentId ? { ...c, likes: c.likes + 1 } : c)));
   };
 
   // 提交评论
@@ -163,9 +140,7 @@ const Detail = () => {
     const newComment = {
       id: Date.now(),
       username: localStorage.getItem('username') || '匿名用户',
-      avater: localStorage.getItem('userInfo')
-        ? JSON.parse(localStorage.getItem('userInfo')).avater
-        : '',
+      avater: localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')).avater : '',
       content: commentInput,
       createdAt: formatDate(new Date()),
       likes: 0
@@ -174,23 +149,36 @@ const Detail = () => {
     setCommentInput('');
   };
 
+  // 返回上一页，兜底：直接访问详情页时回首页
+  const handleBack = () => {
+    if (window.history.length <= 1) {
+      navigate('/');
+    } else {
+      navigate(-1);
+    }
+  };
+
   if (!blogDetail) {
-    return (
-      <div className='blog-detail blog-detail__loading'>文章加载中...</div>
-    );
+    return <div className='blog-detail blog-detail__loading'>文章加载中...</div>;
   }
 
   const author = username;
-  const publishedAt =
-    blogDetail.publishedAt ||
-    blogDetail.createdAt ||
-    blogDetail.created_at ||
-    null;
-  const blogCategory = blogDetail.category || '其他';
+  const publishedAt = blogDetail.publishedAt || blogDetail.createdAt || blogDetail.created_at || null;
+  const blogCategory = blogDetail.categoryName || '其他';
 
   return (
     <div className='blog-detail'>
+      {contextHolder}
+
       <div className='blog-detail__card'>
+        {/* 吸顶导航条 */}
+        <div className='blog-detail__nav'>
+          <button className='blog-detail__nav-back' onClick={handleBack}>
+            <LeftOutlined />
+            <span>返回列表</span>
+          </button>
+        </div>
+
         {/* 文章标题 */}
         <div className='blog-detail__header'>
           <h1 className='blog-detail__title'>{blogDetail.title}</h1>
@@ -203,9 +191,7 @@ const Detail = () => {
             </span>
             <span className='blog-detail__meta-item'>
               <span className='blog-detail__meta-icon'>🕒</span>
-              <span className='blog-detail__meta-value'>
-                {formatDate(publishedAt)}
-              </span>
+              <span className='blog-detail__meta-value'>{formatDate(publishedAt)}</span>
             </span>
             <span className='blog-detail__meta-item'>
               <span className='blog-detail__category'>
@@ -240,10 +226,7 @@ const Detail = () => {
 
         {/* 文章内容 */}
         <div className='blog-detail__content-wrap'>
-          <div
-            className='blog-detail__content'
-            dangerouslySetInnerHTML={{ __html: blogDetail.content }}
-          ></div>
+          <div className='blog-detail__content' dangerouslySetInnerHTML={{ __html: blogDetail.content }}></div>
         </div>
 
         {/* 相似博客推荐 */}
@@ -253,23 +236,15 @@ const Detail = () => {
             <span>相似博客</span>
           </h3>
           <div className='blog-detail__similar-list'>
-            {mockSimilarBlogs.map(item => (
-              <div
-                key={item.id}
-                className='blog-detail__similar-item'
-                onClick={() => navigate(`/detail/${item.id}`)}
-              >
+            {similarBlogs.map(item => (
+              <div key={item.id} className='blog-detail__similar-item' onClick={() => navigate(`/detail/${item.id}`)}>
                 <div className='blog-detail__similar-header'>
-                  <span className='blog-detail__similar-category'>
-                    {item.category}
-                  </span>
+                  <span className='blog-detail__similar-category'>{item.categoryName}</span>
                 </div>
-                <h4 className='blog-detail__similar-title-text'>
-                  {item.title}
-                </h4>
+                <h4 className='blog-detail__similar-title-text'>{item.title}</h4>
                 <div className='blog-detail__similar-meta'>
                   <span>
-                    <HeartOutlined /> {item.likes}
+                    <HeartOutlined /> {item.likeCount}
                   </span>
                   <span>
                     <EyeOutlined /> {item.views}
@@ -311,9 +286,7 @@ const Detail = () => {
                 className='blog-detail__comment-textarea'
               />
               <div className='blog-detail__comment-actions'>
-                <span className='blog-detail__comment-tip'>
-                  Ctrl + Enter 提交
-                </span>
+                <span className='blog-detail__comment-tip'>Ctrl + Enter 提交</span>
                 <button
                   className='blog-detail__comment-submit'
                   onClick={handleSubmitComment}
@@ -327,34 +300,22 @@ const Detail = () => {
 
           {/* 评论列表 */}
           {comments.length === 0 ? (
-            <div className='blog-detail__comments-empty'>
-              暂无评论，快来发表第一条吧！
-            </div>
+            <div className='blog-detail__comments-empty'>暂无评论，快来发表第一条吧！</div>
           ) : (
             <div className='blog-detail__comment-list'>
               {comments.map(item => (
                 <div key={item.id} className='blog-detail__comment-item'>
                   <div className='blog-detail__comment-avatar'>
-                    <Avatar
-                      size='small'
-                      src={item.avater ? imgUrl(item.avater) : undefined}
-                    />
+                    <Avatar size='small' src={item.avater ? imgUrl(item.avater) : undefined} />
                   </div>
                   <div className='blog-detail__comment-content'>
                     <div className='blog-detail__comment-header'>
-                      <span className='blog-detail__comment-author'>
-                        {item.username}
-                      </span>
-                      <span className='blog-detail__comment-time'>
-                        {item.createdAt}
-                      </span>
+                      <span className='blog-detail__comment-author'>{item.username}</span>
+                      <span className='blog-detail__comment-time'>{item.createdAt}</span>
                     </div>
                     <p className='blog-detail__comment-text'>{item.content}</p>
                     <div className='blog-detail__comment-footer'>
-                      <button
-                        className='blog-detail__comment-like'
-                        onClick={() => handleCommentLike(item.id)}
-                      >
+                      <button className='blog-detail__comment-like' onClick={() => handleCommentLike(item.id)}>
                         <LikeOutlined />
                         <span>{item.likes}</span>
                       </button>

@@ -1,42 +1,29 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+require('dotenv').config(); // 第一行，别的都别放它前面
+const createError = require('http-errors');
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const logger = require('morgan');
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
+const indexRouter = require('./routes/index');
+const usersRouter = require('./routes/users');
 
+// 滑块验证码：替换 svg-captcha 为aj-captcha-node，实现滑动拼图
+// const svgCaptcha = require('svg-captcha'); //验证码
 const session = require('express-session');
-const RedisStore = require('connect-redis')(session); // v6 工厂调用：返回 constructor
-// const { createClient } = require('redis');
-// redis@3 用顶层 createClient，不要解构
-const redis = require('redis');
+const RedisStore = require('connect-redis').default; // v7 直接导出 class
+const redisClient = require('./redis');
 
-var app = express();
+// 限制同一个 IP 在指定时间内的请求次数，防刷接口、暴力破解登录、高频请求打垮服务，常用于登录、验证码、注册等高危接口
+// const rateLimit = require('express-rate-limit');
 
-const redisClient = redis.createClient({
-  url: process.env.REDIS_URL || 'redis://127.0.0.1:6379'
-});
+const app = express();
 
-redisClient.on('error', err => {
-  // 不监听会让进程崩溃，这就是你刚才看到的 throw
-  console.error('[redis] error:', err.message);
-});
-redisClient.on('connect', () => console.log('[redis] connected'));
-redisClient.on('reconnecting', () => console.warn('[redis] reconnecting...'));
-
-// 1. 起 redis 客户端（redis@3 自动连接，不需要 .connect()，那是 redis@4 的方法）
-// const redisClient = createClient({
-//   // url: `redis://:${process.env.REDIS_PASSWORD}@redis:6379`   // docker 内用服务名
-//   url: 'redis://127.0.0.1:6379' //本地直连:
-// });
-
-// 2. 装 session 中间件
+// 2. 装 session 中间件, 所有请求来都会经过这个中间件
 app.use(
   session({
-    store: new RedisStore({ client: redisClient, prefix: 'sess:' }),
-    secret: process.env.JWT_SECRET || 'dev-secret-change-me', // 复用你已有的密钥
+    store: new RedisStore({ client: redisClient, prefix: 'sess:' }), //session 存在 Redis，sessionId 只是索引
+    secret: process.env.SESSION_SECRET_SECRET, // 复用你已有的密钥
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -44,6 +31,7 @@ app.use(
       secure: false, // 生产 https 时改 true
       sameSite: 'lax', // 防 CSRF 的轻量方案
       maxAge: 1000 * 60 * 60 * 24 * 7 // 7 天
+      // maxAge: 1000 * 5 // 测试用，5 秒测试用
     }
   })
 );

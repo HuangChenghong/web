@@ -18,18 +18,23 @@ const Profile = () => {
 
   useEffect(() => {
     const userId = user?.userId || localStorage.getItem('userId');
-    getUserInfo({ userId }).then(res => {
-      if (res.code === 200 && res?.data) {
-        const { avater, username, cname, email } = res.data;
-        setAvatarUrl(avater);
-        form.setFieldsValue({
-          username,
-          cname,
-          email
-        });
-      }
-    });
-  }, [form, user]);
+    getUserInfo({ userId })
+      .then(res => {
+        if (res.code === 200 && res?.data) {
+          const { avater, username, cname, email } = res.data;
+          setAvatarUrl(avater);
+          form.setFieldsValue({
+            username,
+            cname,
+            email
+          });
+        }
+      })
+      .catch(err => {
+        messageApi.error('登录过期，请重新登录！！！！！！！！！！！！！');
+        console.log(err, '过期了');
+      });
+  }, [form, user, messageApi]);
 
   const getBase64 = file =>
     new Promise((resolve, reject) => {

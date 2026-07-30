@@ -203,6 +203,136 @@
   box-shadow: 0 5px 16px rgba(59, 130, 246, 0.36) !important;
 }
 
+/* === 封面上传 === */
+.editor-form__cover-uploader {
+  width: 100%;
+}
+
+.editor-form__cover-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 160px;
+  border: 2px dashed var(--theme-border);
+  border-radius: 10px;
+  background: var(--theme-background);
+  color: var(--theme-text-faint);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.editor-form__cover-placeholder:hover {
+  border-color: var(--theme-primary);
+  color: var(--theme-primary);
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.editor-form__cover-placeholder .anticon,
+.editor-form__cover-placeholder svg {
+  font-size: 32px;
+}
+
+.editor-form__cover-placeholder span {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.editor-form__cover-placeholder small {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.editor-form__cover-preview {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--theme-border);
+}
+
+.editor-form__cover-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.editor-form__cover-actions {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.editor-form__cover-preview:hover .editor-form__cover-actions {
+  opacity: 1;
+}
+
+.editor-form__cover-actions .ant-btn {
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  color: var(--theme-text-strong);
+}
+
+.editor-form__cover-actions .ant-btn:hover {
+  background: #fff;
+  color: var(--theme-primary);
+}
+
+.editor-form__cover-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--theme-danger);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.editor-form__cover-remove:hover {
+  background: #fff;
+  color: #dc2626;
+}
+
+/* === 文章描述 === */
+.editor-form__description.ant-input,
+.editor-form__description.ant-input-affix-wrapper {
+  border-radius: 8px;
+  border-color: var(--theme-border);
+  background: var(--theme-background);
+  color: var(--theme-text-strong);
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 10px 14px;
+}
+
+.editor-form__description.ant-input:focus,
+.editor-form__description.ant-input:hover {
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.editor-form__description.ant-input::placeholder {
+  color: var(--theme-text-faint);
+}
+
 /* === 小屏 === */
 @media (max-width: 640px) {
   .editor-card__header {

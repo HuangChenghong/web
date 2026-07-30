@@ -3,17 +3,45 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 
 const { dbquery } = require('../db');
-const svgCaptcha = require('svg-captcha'); //验证码
 
-const redisClient = require('../redis');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const requireAuth = require('../middleware/auth');
 
-// 接口限流，防止被攻击
-const { loginLimiter, captchaLimiter } = require('../middleware/limit');
+// 配置图片存储规则
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const date = new Date();
+    const dayDir = date.toLocaleDateString().replace(/[\\/]/g, '-');
+    const fullPath = path.join('./uploads', dayDir);
+    console.log('fullPath=', fullPath);
+    // 不存在目录就递归创建,recursive: true：哪怕没有uploads文件夹，也会自动创建
+    if (!fs.existsSync(fullPath)) {
+      fs.mkdirSync(fullPath, { recursive: true });
+    }
+    cb(null, fullPath); // 保存目录
+  },
+  filename: (req, file, cb) => {
+    // 时间戳+后缀，避免重名覆盖图片
+    const suffix = path.extname(file.originalname); //截取文件后缀
+    const fileName = Date.now() + '-' + Math.random().toString(36) + suffix;
+    cb(null, fileName);
+  }
+});
 
-// 图片上传相关方法（从 utils.js 引入）
-const { upload, buildImageUrl, safeDeleteFile } = require('./utils');
+// 限制：仅图片、最大5MB
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    // 在 multer 配置里加 `fileFilter` 过滤非法文件，只允许上传图片格式
+    const allowImg = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowImg.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('仅支持jpg/png/webp图片'), false);
+  }
+});
 
 // 加密
 const hashPwd = async pwd => {
@@ -25,65 +53,12 @@ const verifyPwd = async (raw, hash) => {
   return await bcrypt.compare(raw, hash);
 };
 
-// 登录图形获取验证码
-// 1. 获取图形验证码接口 GET /captcha
-// 返回svg图片 + 唯一验证码ID，前端携带id登录
-router.get('/captcha', captchaLimiter, async (req, res) => {
-  // 生成验证码：4位字符，配置干扰线、噪点
-  const captcha = svgCaptcha.create({
-    size: 4, // 验证码长度
-    fontSize: 50, // 字体大小
-    width: 100, // 图片宽度
-    height: 40, // 图片高度
-    noise: 3, // 噪点数量
-    color: true, // 是否需要背景颜色
-    background: '#cc9966',
-    ignoreChars: '0o1il' //剔除容易混淆字符
-  });
-  // 唯一标识，用来redis存取
-  const captchaId = Date.now() + '' + Math.random().toString(36).slice(2);
-  // 将验证码保存到redis中，并设置过期时间
-  await redisClient.set(captchaId, captcha.text, { EX: 60 * 2 });
-  //   // 响应头返回id，body返回svg图片,这种不行，前端拿不到captchaId，可以通过cookie拿到
-  // res.set({
-  //   'Content-Type': 'image/svg+xml', //设置响应头
-  //   'X-Captcha-Id': captchaId // 返回给前端的标识
-  // });
-  // res.send(captcha.data);
-  // ------------------------------------------------------
-  res.json({
-    code: 200,
-    data: {
-      captchaId,
-      captchaImg: captcha.data
-    }
-  });
-});
-
 /**
  * 登录
  * md5和crypto和base64 ，cookie和session和 JWT  TODO:
  */
-router.post('/login', loginLimiter, async (req, res, next) => {
-  const { username, password, code, captchaId } = req.body;
-  // 基础判空
-  if (!username || !password || !code || !captchaId) {
-    return res.json({ code: 400, msg: '账号、密码、验证码不能为空' });
-  }
-
-  // 从redis中获取验证码（set 时用的 key 就是 captchaId，不要再加前缀）
-  const realCode = await redisClient.get(captchaId);
-  // 用完立刻删除，防止重复使用验证码（key 必须和 set 时一致！）
-  await redisClient.del(captchaId);
-  if (!realCode) {
-    return res.json({ code: 400, msg: '验证码过期，请刷新重试' });
-  }
-
-  // 统一小写对比，忽略大小写
-  if (String(realCode).toLowerCase() !== String(code).toLowerCase()) {
-    return res.json({ code: 400, msg: '验证码错误' });
-  }
-
+router.post('/login', async (req, res, next) => {
+  const { username, password } = req.body;
   const findUserSql = `select * from user where username = ?`;
   try {
     const result = await dbquery(findUserSql, [username]);
@@ -117,7 +92,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
   注册用户
   md5和crypto和base64 ，cookie和session和 JWT  TODO:
 */
-router.post('/register', loginLimiter, async (req, res, next) => {
+router.post('/register', async (req, res, next) => {
   const { username, password } = req.body;
   const findUserSql = `select * from user where username = ?`;
   try {
@@ -139,38 +114,23 @@ router.post('/register', loginLimiter, async (req, res, next) => {
   }
 });
 
-// /api/upload/image 富文本上传图片
-router.post('/upload/image', requireAuth, upload.any(), async (req, res, next) => {
-  try {
-    // ⚠️ upload.any() 把文件放在 req.files（复数），不是 req.file
-    const file = req.files[0];
-    if (!file) {
-      return res.json({
-        code: 400,
-        msg: '请上传图片',
-        data: {}
-      });
-    }
-    // 上传成功后，返回图片 URL
-    // ⚠️ multer 存储时按日期创建了子目录（如 uploads/2026-07-30/xxx.png）
-    // file.path 是完整路径（如 uploads/2026-07-30/xxx.png），需要转成 URL 格式
-    const url = `/${file.path.replace(/\\/g, '/')}`;
-    res.json({
-      code: 200,
-      data: { url }
-    });
-  } catch (err) {
-    console.error('upload/image error', err);
-    res.status(500).json({ code: 500, msg: '上传图片失败', data: {} });
-  }
-});
-
 // 修改用户的信息，添加头像，增加昵称，或者邮箱
 router.post('/update', requireAuth, upload.any(), async (req, res, next) => {
+  console.log('upadteeeee');
   try {
     const file = (req.files || []).find(f => ['avatar', 'avater', 'img'].includes(f.fieldname));
-    // 复用 utils 中的 buildImageUrl 计算 URL
-    const imgUrl = buildImageUrl(file);
+    // const imgPath = file ? path.join('./uploads', file.filename) : null;
+    // console.log('imgPath=', imgPath, file.filename);
+    // const imgUrl = imgPath;
+    let imgUrl = null;
+    if (file) {
+      // 和 multer 配置中一样计算日期目录
+      const date = new Date();
+      const dayDir = date.toLocaleDateString().replace(/[\\/]/g, '-');
+      // 使用 /uploads 开头的 URL 格式，前端才能正确加载
+      imgUrl = `/uploads/${dayDir}/${file.filename}`;
+    }
+    console.log('imgUrl=', imgUrl);
     const { username, cname, email } = req.body;
 
     // 更新头像的时候，要删除旧的头像，以免头像堆积的越来越多： 以后研究下使用oss阿里云上传头像的方法TODO:
@@ -213,10 +173,29 @@ router.post('/update', requireAuth, upload.any(), async (req, res, next) => {
       delete userInfo.password;
       res.json({ code: 200, msg: '更新成功', data: userInfo });
 
-      // 更新成功后删除旧的头像（复用 safeDeleteFile 做安全检查）
-      // TODO: 尝试下使用oss；解决报错；前端个人中心代码报错； fastapi写下管理的后端
+      // 更新成功后删除旧的头像
+      // TODO:保存时，我希望能够按照日期建文件夹；尝试下使用oss；解决报错；前端个人中心代码报错； fastapi写下管理的后端
+      console.log('imgUrl=', imgUrl);
+      console.log('oldAvater=', oldAvater);
+
       if (imgUrl && oldAvater && oldAvater !== imgUrl) {
-        safeDeleteFile(oldAvater);
+        // oldAvater 格式: /uploads/2026-07-27/xxx.png
+        // split('/').slice(1) → ['uploads', '2026-07-27', 'xxx.png']
+        // 当前目录是（__dirname）routes，需要离开routes目录(cd ..)，上一级目录uploads/2026-07-27/xxx.png
+        const oldFilePath = path.join(__dirname, '..', ...oldAvater.split('/').slice(1));
+        console.log('oldFilePath=', oldFilePath);
+        // 安全检查：必须在 uploads/ 目录下
+        const uploadsDir = path.join(__dirname, '..', 'uploads') + path.sep;
+        console.log('uploadsDir=', uploadsDir);
+        // 安全检查：必须在 uploads/ 目录下（防路径遍历攻击）
+        // 注意： uploadsDir 的安全检查逻辑也错了——它应该检查是否在根 uploads/ 目录下，而不是在某个日期子目录下
+        if (oldFilePath.startsWith(uploadsDir)) {
+          fs.unlink(oldFilePath, err => {
+            if (err) {
+              console.warn('[avatar] 旧头像删除失败:', oldAvater, err.message);
+            }
+          });
+        }
       }
     } else {
       res.json({ code: 400, msg: '用户不存在或更新失败', data: {} });
@@ -272,7 +251,11 @@ router.post('/delete', requireAuth, async (req, res, next) => {
   try {
     const [user] = await dbquery('SELECT avater FROM user WHERE username = ?', [username]);
     if (user?.avater) {
-      safeDeleteFile(user.avater);
+      const filePath = path.join(__dirname, '..', user.avater);
+      const uploadsDir = path.join(__dirname, '..', 'uploads') + path.sep;
+      if (filePath.startsWith(uploadsDir)) {
+        await fs.unlink(filePath).catch(() => {});
+      }
     }
     await dbquery('DELETE FROM user WHERE username = ?', [username]);
     res.json({ code: 200, msg: '用户已删除' });

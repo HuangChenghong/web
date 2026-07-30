@@ -25,6 +25,7 @@ const RequireAuth = () => {
 
   if (!user) {
     // replace 不会留历史记录，避免按返回又回到被拦截页
+    console.log('location.pathname---------', location.pathname);
     return <Navigate to='/login' state={{ from: location.pathname }} replace />;
   }
 

@@ -90,6 +90,7 @@ export const themes = {
   }
 };
 
+// persist:Zustand persist 持久化中间件 把 Zustand 状态自动存入 localStorage/sessionStorage，页面刷新、关闭重开数据不丢失
 export const useThemeStore = create(
   persist(
     (set, get) => ({
@@ -98,13 +99,14 @@ export const useThemeStore = create(
       getTheme: () => themes[get().currentTheme]
     }),
     {
-      name: 'theme-storage',
+      name: 'theme-storage', //localStorage 的 key 名称，必填，不能重复
       storage: {
         getItem: name => {
           const item = localStorage.getItem(name);
           return item ? JSON.parse(item) : { currentTheme: 'ocean' };
         },
-        setItem: (name, value) => localStorage.setItem(name, JSON.stringify(value)),
+        setItem: (name, value) =>
+          localStorage.setItem(name, JSON.stringify(value)),
         removeItem: name => localStorage.removeItem(name)
       }
     }

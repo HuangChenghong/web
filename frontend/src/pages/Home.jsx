@@ -34,7 +34,7 @@ const Home = () => {
   return (
     <Layout className='app-layout'>
       {contextHolder}
-      <header>
+      <header style={{ zIndex: '99' }}>
         <h1 onClick={() => navigate('/')}>
           <FacebookOutlined />
           <span className='blog-title'>我的博客</span>
@@ -96,12 +96,13 @@ const Home = () => {
                   {
                     key: 'drafts',
                     icon: <FileTextOutlined />,
-                    label: '我的草稿'
+                    label: '我的文章'
                   },
+
                   {
                     key: 'views',
                     icon: <EyeOutlined />,
-                    label: '我的浏览'
+                    label: '浏览历史'
                   },
                   {
                     key: 'collections',

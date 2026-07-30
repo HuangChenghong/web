@@ -1,58 +1,25 @@
-import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useCallback
-} from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Pagination, Modal, message, Input } from 'antd';
 import {
   CalendarOutlined,
-  DeleteOutlined,
   ExclamationCircleFilled,
-  ReadOutlined,
   EditOutlined,
-  HeartOutlined,
+  LikeOutlined,
   EyeOutlined,
   FolderOutlined,
   ThunderboltFilled,
-  EditFilled,
   LeftOutlined,
   RightOutlined
 } from '@ant-design/icons';
 
-import { getBlogList, delBlog } from '../api/blog';
+import { getBlogList, delBlog, getCategories, getCount } from '../api/blog';
 import './bloglist.css';
+import { imgUrl } from '../utils/imgUrl';
+import { formatDate } from '../utils/common';
 
 // 内容截断（单行版本，CSS 也会兜底）
-const truncate = (str = '', max = 140) =>
-  str.length <= max ? str : str.slice(0, max) + '…';
-
-// 格式化日期
-const formatDate = value => {
-  if (!value) return '';
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-// 分类列表（模拟数据，后续可从后端获取）
-const categories = [
-  { value: '', label: '全部' },
-  { value: '技术', label: '技术' },
-  { value: '生活', label: '生活' },
-  { value: '随笔', label: '随笔' },
-  { value: '教程', label: '教程' },
-  { value: '分享', label: '分享' },
-  { value: '其他', label: '其他' }
-];
+const truncate = (str = '', max = 140) => (str.length <= max ? str : str.slice(0, max) + '…');
 
 // 分类强调色 + 浅底色（用于卡片装饰条和标签背景）
 // 浅底色 = 主题里的 --cat-* 变量，这里作为 fallback 兜底
@@ -66,25 +33,36 @@ const categoryAccents = {
 };
 
 // 简单的文案模板
-const HERO_TITLES = [
-  '在这里，记录每一段思考',
-  '把灵感写成可被回看的文字',
-  '今天，又有什么值得分享？'
-];
+const HERO_TITLES = ['在这里，记录每一段思考', '把灵感写成可被回看的文字', '今天，又有什么值得分享？'];
 const pickTitle = total => HERO_TITLES[Math.min(total, HERO_TITLES.length - 1)];
 
 const BlogList = () => {
+  // 从 sessionStorage 恢复列表状态
+  const savedState = sessionStorage.getItem('bloglist_state');
+  const initialState = savedState ? JSON.parse(savedState) : {};
+
   const [blogList, setBlogList] = useState([]);
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(5);
+  const [page, setPage] = useState(initialState.page || 1);
+  const [pageSize] = useState(8);
   const [total, setTotal] = useState(0);
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('');
+  const [title, setTitle] = useState(initialState.title || '');
+  const [category, setCategory] = useState(initialState.category || '');
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [hero, setHero] = useState({});
   const [modal, contextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
   const router = useNavigate();
   const username = localStorage.getItem('username');
+
+  // 保存列表状态到 sessionStorage
+  const saveListState = useCallback(
+    (state = {}) => {
+      const currentState = { page, category, title, ...state };
+      sessionStorage.setItem('bloglist_state', JSON.stringify(currentState));
+    },
+    [page, category, title]
+  );
 
   const fetchData = async (page, query = title) => {
     setLoading(true);
@@ -92,7 +70,7 @@ const BlogList = () => {
       page,
       pageSize,
       title: query,
-      category: category,
+      category_id: category,
       status: 1
     };
     try {
@@ -105,17 +83,6 @@ const BlogList = () => {
       setLoading(false);
     }
   };
-
-  // 计算总浏览量 / 总点赞数（用于 Hero 统计区）
-  const { totalViews, totalLikes } = useMemo(() => {
-    return blogList.reduce(
-      (acc, cur) => ({
-        totalViews: acc.totalViews + (Number(cur.views) || 0),
-        totalLikes: acc.totalLikes + (Number(cur.likes) || 0)
-      }),
-      { totalViews: 0, totalLikes: 0 }
-    );
-  }, [blogList]);
 
   // 取首字符作为头像（中文取最后 1 字，英文取首字母）
   const getInitial = (name = '') => {
@@ -155,6 +122,23 @@ const BlogList = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateCategoryScrollState, categories.length]);
 
+  useEffect(() => {
+    // 获取分类列表
+    getCategories()
+      .then(res => {
+        const all = [{ id: '', name: '全部' }, ...res.data];
+        setCategories(all);
+      })
+      .catch(err => {
+        console.log('获取分类-', err);
+      });
+    // 获取总用户数和总流量量
+    getCount()
+      .then(res => {
+        setHero(res.data);
+      })
+      .catch(err => console.log('获取用户num=', err));
+  }, []);
   // 选中分类后自动滚到可视区
   useEffect(() => {
     const el = categoryScrollRef.current;
@@ -188,7 +172,33 @@ const BlogList = () => {
   useEffect(() => {
     fetchData(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, category]);
+
+  // 保存列表状态到 sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('bloglist_state', JSON.stringify({ page, category, title }));
+  }, [page, category, title]);
+
+  // 组件挂载时恢复滚动位置
+  useEffect(() => {
+    const savedScrollY = sessionStorage.getItem('bloglist_scroll');
+    if (savedScrollY) {
+      setTimeout(() => {
+        window.scrollTo(0, Number(savedScrollY));
+      }, 100);
+    }
+  }, []);
+
+  // 监听滚动保存位置
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem('bloglist_scroll', String(window.scrollY));
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   // 删除单篇文章
   const handleDelete = async id => {
@@ -232,9 +242,7 @@ const BlogList = () => {
               灵感 · 记录 · 分享
             </span>
             <h1 className='blog-hero__title'>{pickTitle(total)}</h1>
-            <p className='blog-hero__subtitle'>
-              这里汇集了所有发布过的文章。挑一个分类，或者直接搜索感兴趣的标题吧～
-            </p>
+            <p className='blog-hero__subtitle'>这里汇集了所有发布过的文章。挑一个分类，或者直接搜索感兴趣的标题吧～</p>
           </div>
           <div className='blog-hero__stats'>
             <div className='blog-hero__stat'>
@@ -242,29 +250,18 @@ const BlogList = () => {
               <span className='blog-hero__stat-label'>总文章</span>
             </div>
             <div className='blog-hero__stat'>
-              <span className='blog-hero__stat-num'>{totalViews}</span>
-              <span className='blog-hero__stat-label'>总阅读</span>
+              <span className='blog-hero__stat-num'>{hero.userCount}</span>
+              <span className='blog-hero__stat-label'>累计用户</span>
             </div>
             <div className='blog-hero__stat'>
-              <span className='blog-hero__stat-num'>{totalLikes}</span>
-              <span className='blog-hero__stat-label'>总点赞</span>
+              <span className='blog-hero__stat-num'>{hero.viewCount}</span>
+              <span className='blog-hero__stat-label'>总浏览</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 顶部工具栏：标题 + 搜索 + 发布按钮（仅样式，逻辑你后续接） */}
       <div className='blog-toolbar'>
-        {/* <div className='blog-toolbar__left'>
-          <span className='blog-toolbar__icon' aria-hidden='true'>
-            <ReadOutlined />
-          </span>
-          <h2 className='blog-toolbar__title'>
-            所有文章
-            <span className='blog-toolbar__count'>（总计 {total} 篇）</span>
-          </h2>
-        </div> */}
-
         <div className='blog-toolbar__right'>
           {/* 分类筛选：横向滚动 + 左右箭头 */}
           <div className='blog-toolbar__category'>
@@ -277,21 +274,17 @@ const BlogList = () => {
               <LeftOutlined />
             </button>
 
-            <div
-              className='blog-toolbar__category-list'
-              ref={categoryScrollRef}
-            >
+            <div className='blog-toolbar__category-list' ref={categoryScrollRef}>
               {categories.map(item => (
                 <button
-                  key={item.value}
-                  className={`blog-toolbar__category-item ${category === item.value ? 'active' : ''}`}
+                  key={item.id}
+                  className={`blog-toolbar__category-item ${category === item.id ? 'active' : ''}`}
                   onClick={() => {
-                    setCategory(item.value);
+                    setCategory(item.id);
                     setPage(1);
-                    fetchData(1);
                   }}
                 >
-                  {item.label}
+                  {item.name}
                 </button>
               ))}
             </div>
@@ -323,11 +316,7 @@ const BlogList = () => {
               }}
             />
           </div>
-          <button
-            className='blog-toolbar__btn'
-            type='button'
-            onClick={handleLogin}
-          >
+          <button className='blog-toolbar__btn' type='button' onClick={handleLogin}>
             <EditOutlined />
             <span>{username ? '发布文章' : '登录后发布'}</span>
           </button>
@@ -339,22 +328,13 @@ const BlogList = () => {
         <div className='blog-list__skeleton'>
           {[1, 2, 3].map(i => (
             <div className='blog-skeleton-card' key={i}>
-              <div
-                className='blog-skeleton-card__shimmer'
-                style={{ width: '18%', height: 18 }}
-              />
-              <div
-                className='blog-skeleton-card__shimmer'
-                style={{ width: '70%', height: 22 }}
-              />
-              <div
-                className='blog-skeleton-card__shimmer'
-                style={{ width: '100%', height: 14 }}
-              />
-              <div
-                className='blog-skeleton-card__shimmer'
-                style={{ width: '50%', height: 14 }}
-              />
+              <div className='blog-skeleton-card__cover' />
+              <div className='blog-skeleton-card__body'>
+                <div className='blog-skeleton-card__shimmer' style={{ width: '18%', height: 14 }} />
+                <div className='blog-skeleton-card__shimmer' style={{ width: '70%', height: 20 }} />
+                <div className='blog-skeleton-card__shimmer' style={{ width: '100%', height: 12 }} />
+                <div className='blog-skeleton-card__shimmer' style={{ width: '45%', height: 12 }} />
+              </div>
             </div>
           ))}
         </div>
@@ -366,13 +346,12 @@ const BlogList = () => {
             {blogList.map(item => {
               // 兼容多种字段名
               const author = item.username || '佚名';
-              const publishedAt =
-                item.created_at || item.createdAt || item.publishedAt || null;
-              const blogCategory = item.category || '其他';
-              const likes = item.likes || 0;
+              const avater = item.avater;
+              const publishedAt = item.created_at || item.createdAt || item.publishedAt || null;
+              const blogCategory = item.categoryName || '其他';
+              const likes = item.likeCount || 0;
               const views = item.views || 0;
-              const accent =
-                categoryAccents[blogCategory] || categoryAccents['其他'];
+              const accent = categoryAccents[blogCategory] || categoryAccents['其他'];
               const cardStyle = {
                 '--card-accent': accent.color,
                 '--card-accent-bg': accent.bg
@@ -383,9 +362,11 @@ const BlogList = () => {
                   key={item.id}
                   className='blog-card'
                   style={cardStyle}
-                  onClick={() =>
-                    router(`/detail/${item.id}?username=${item.username}`)
-                  }
+                  onClick={() => {
+                    // 保存当前滚动位置
+                    sessionStorage.setItem('bloglist_scroll', String(window.scrollY));
+                    router(`/detail/${item.id}?username=${item.username}`);
+                  }}
                 >
                   <div className='blog-card__main'>
                     {/* 分类标签 */}
@@ -397,17 +378,14 @@ const BlogList = () => {
                     </div>
 
                     <h2 className='blog-card__title'>{item.title}</h2>
-                    <p
-                      className='blog-card__excerpt'
-                      dangerouslySetInnerHTML={{
-                        __html: truncate(item.content, 140)
-                      }}
-                    ></p>
+                    <p className='blog-card__excerpt'>{item.description || '暂无描述'}</p>
                     <div className='blog-card__meta'>
                       <span className='blog-card__author'>
-                        <span className='blog-card__avatar'>
-                          {getInitial(author)}
-                        </span>
+                        {avater ? (
+                          <img src={imgUrl(avater)} width='18' alt={author} />
+                        ) : (
+                          <span className='blog-card__avatar'>{getInitial(author)}</span>
+                        )}
                         {author}
                       </span>
                       <span className='blog-card__divider' />
@@ -418,7 +396,7 @@ const BlogList = () => {
                       <span className='blog-card__divider' />
                       {/* 点赞数 */}
                       <span className='blog-card__meta-item blog-card__meta-item--like'>
-                        <HeartOutlined />
+                        <LikeOutlined />
                         {likes}
                       </span>
                       {/* 浏览量 */}
@@ -429,33 +407,19 @@ const BlogList = () => {
                     </div>
                   </div>
 
-                  {username === item.username && (
-                    <div className='blog-card__actions'>
-                      <button
-                        className='blog-card__action blog-card__action--edit'
-                        title='编辑文章'
-                        onClick={e => {
-                          e.stopPropagation(); // 阻止冒泡到卡片
-                          // onClick 逻辑由你接：
-                          router(`/publishEdit/${item.id}`);
-                          // 或者用 query 参数：router(`/publish?id=${item.id}`)
-                        }}
-                      >
-                        <EditFilled />
-                      </button>
-
-                      <button
-                        className='blog-card__action blog-card__action--delete'
-                        title='删除文章'
-                        onClick={e => {
-                          e.stopPropagation(); // 阻止冒泡到卡片
-                          confirmDelete(item.id);
-                        }}
-                      >
-                        <DeleteOutlined />
-                      </button>
-                    </div>
-                  )}
+                  {/* 封面缩略图 */}
+                  <div className='blog-card__cover'>
+                    <img
+                      width='160'
+                      height='120'
+                      src={
+                        item.thumb ||
+                        `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=${encodeURIComponent(blogCategory + ' article, blog post, minimalist, clean')}&image_size=landscape_4_3`
+                      }
+                      alt={item.title}
+                      loading='lazy'
+                    />
+                  </div>
                 </li>
               );
             })}

@@ -6,7 +6,7 @@ const loadUser = () => {
     const userInfo = localStorage.getItem('userInfo');
     const userId = localStorage.getItem('userId');
     const username = localStorage.getItem('username');
-    
+
     if (userInfo) {
       return {
         ...JSON.parse(userInfo),
@@ -20,11 +20,11 @@ const loadUser = () => {
   return null;
 };
 
-export const useUserStore = create((set) => ({
+export const useUserStore = create(set => ({
   user: loadUser(),
-  
+
   // 登录时设置用户信息
-  login: (userData) => {
+  login: userData => {
     const user = {
       ...userData,
       userId: userData.id,
@@ -36,17 +36,17 @@ export const useUserStore = create((set) => ({
     if (userData.username) localStorage.setItem('username', userData.username);
     set({ user });
   },
-  
+
   // 更新用户信息
-  update: (userData) => {
-    set((state) => {
+  update: userData => {
+    set(state => {
       const newUser = { ...state.user, ...userData };
       // 同步到 localStorage
       localStorage.setItem('userInfo', JSON.stringify(newUser));
       return { user: newUser };
     });
   },
-  
+
   // 退出登录
   logout: () => {
     localStorage.clear();

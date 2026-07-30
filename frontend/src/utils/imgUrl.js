@@ -1,9 +1,8 @@
 // 方法一：从环境变量读后端地址，默认本地
 // const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 
-// 方法二： craco.config.js里面使用代理，
-
 /**
+ * 方法二： craco.config.js里面使用代理，下面是前缀在config.proxy.context里面的
  * 把后端返回的图片路径补成完整的 URL
  * 后端存的是 /uploads/xxx.png 这种相对路径
  */

@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { dbquery } = require('../db');
-const { requireAuth } = require('../middleware/auth');
+const requireAuth = require('../middleware/auth');
+// const { upload, storage, buildImageUrl, safeDeleteFile } = require('./utils');
 
 /* =========================================================
  * 文章 CRUD
@@ -9,7 +10,7 @@ const { requireAuth } = require('../middleware/auth');
 
 /* GET home page. */
 router.get('/', async (req, res, next) => {
-  const { page, pageSize, title, status = '1' } = req.query;
+  const { page, pageSize, title, status = '1', category_id, user_id } = req.query;
   const searchVal = title ? `%${title}%` : null;
   const pageNum = parseInt(page) || 1;
   const pageSizeNum = parseInt(pageSize) || 10;
@@ -20,18 +21,26 @@ router.get('/', async (req, res, next) => {
   // const sql = `select * from articles left join user on articles.user_id = user.id limit ? offset ? `
 
   // -- ⚠️ 必须用 articles. 前缀，否则 MySQL 会优先用 user.createAt 排序（坑！）
+  // 第一个left，根据文章的user_id查询用户表，返回用户的名字
+  // 第二个left，根据文章的category_id查询分类表，返回分类的名字
+  // where是根据自己article表自己的查询条件查数据
   const sql = `
     select 
       articles.*,
       user.username,
       user.cname,
-      user.avater
-      from articles left 
-      join user on articles.user_id = user.id   
+      user.avater,
+      category.name as categoryName,
+      (SELECT COUNT(*) FROM article_like WHERE article_id = articles.id) AS likeCount
+      from articles 
+      left join user on articles.user_id = user.id    
+      left join category on articles.category_id = category.id
       where 1=1
+      ${user_id ? 'and articles.user_id = ?' : ''}
       ${title ? 'and articles.title LIKE ?' : ''}
+      ${category_id ? 'and articles.category_id = ?' : ''}
       and articles.status = ?
-      order by createdAt desc, id desc
+      order by createdAt desc, views desc
       limit ? offset ?
   `;
   const params = [status, pageSizeNum, pageSizeNum * (pageNum - 1)];
@@ -39,10 +48,25 @@ router.get('/', async (req, res, next) => {
   // status:1 已发布，2草稿
   try {
     if (title) params.unshift(searchVal);
+    if (category_id) params.unshift(category_id);
+    if (user_id) params.unshift(user_id); // 根据用户id查询文章，我的文章
     const results = await dbquery(sql, params);
 
-    if (title) totalSql += ` and title LIKE ?`;
-    const totalParams = title ? [1, searchVal] : [1];
+    // 查询总数的的参数
+    const totalParams = [1];
+    if (title) {
+      totalSql += ` and title LIKE ?`;
+      totalParams.push(searchVal);
+    }
+    if (category_id) {
+      totalSql += ` and category_id = ?`;
+      totalParams.push(category_id);
+    }
+    if (user_id) {
+      totalSql += ` and articles.user_id = ?`;
+      totalParams.push(user_id); // 根据用户id查询文章，我的文章
+    }
+
     const totalResults = await dbquery(totalSql, totalParams);
     res.json({
       code: 200,
@@ -55,31 +79,16 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// 获取单个文章
-router.get(`/:id`, async (req, res, next) => {
-  const { id } = req.params;
-  const sql = `SELECT * FROM articles WHERE id = ? AND status=1`;
-  try {
-    const results = await dbquery(sql, [id]);
-    if (results.length === 0) {
-      return res.status(404).json({ code: 404, msg: '文章未找到' });
-    }
-    res.json({ code: 200, msg: 'success', data: results[0] });
-  } catch (err) {
-    next(err);
-  }
-});
-
 // 创建一个文章
 router.post(`/create`, requireAuth, async (req, res, next) => {
-  const { title, content, user_id, status } = req.body;
-  // 判断只能当前登录用户才能创建文章
-  if (user_id !== req.user.id) {
-    return res.status(403).json({ code: 403, msg: '您没有权限创建文章' });
+  const { title, content, user_id, status, category_id, thumb, desc } = req.body;
+  // 判断只能当前登录用户才能创建文章,
+  if (Number(user_id) !== req.session.user.id) {
+    return res.status(403).json({ code: 403, msg: '您没有权限创建文章!!3' });
   }
-  const sql = `INSERT INTO articles (title, content, user_id, status) VALUES (?, ?, ?,?)`;
+  const sql = `INSERT INTO articles (title, content, user_id, status, category_id, thumb, description) VALUES (?, ?, ?, ?, ?, ?,?)`;
   try {
-    const results = await dbquery(sql, [title, content, user_id, status]);
+    const results = await dbquery(sql, [title, content, user_id, status, category_id, thumb, desc]);
     console.log(results, '创建一个文章');
     res.json({
       code: 200,
@@ -93,7 +102,7 @@ router.post(`/create`, requireAuth, async (req, res, next) => {
 
 /* 修改文章  TODO: 要判断作者才能修改自己的文章*/
 router.post(`/update`, requireAuth, async (req, res, next) => {
-  const { title, content, id, status } = req.body;
+  const { title, content, id, status, category_id, thumb, desc } = req.body;
   try {
     // 检查文章是否存在
     const searchSql = `SELECT * FROM articles WHERE id = ?`;
@@ -105,8 +114,9 @@ router.post(`/update`, requireAuth, async (req, res, next) => {
     if (article[0].user_id !== req.user.id) {
       return res.status(403).json({ code: 403, msg: '您没有权限修改该文章' });
     }
-    const sql = `UPDATE articles SET title = ?, content = ?, status = ? WHERE id = ?`;
-    const results = await dbquery(sql, [title, content, status, id]);
+    // 构建更新 SQL 语句
+    const sql = `UPDATE articles SET title = ?, content = ?, status = ?, category_id = ?, thumb = ?, description = ? WHERE id = ?`;
+    const results = await dbquery(sql, [title, content, status, category_id, thumb, desc, id]);
     console.log(results);
     res.json({ code: 200, msg: 'success', data: results });
   } catch (err) {
@@ -131,6 +141,259 @@ router.post(`/delete`, requireAuth, async (req, res, next) => {
   try {
     await dbquery(sql, [id]);
     res.json({ code: 200, msg: 'success' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 收藏文章
+router.post(`/collect`, requireAuth, async (req, res, next) => {
+  const { id, userId } = req.body;
+  // 检查用户是否已收藏该文章
+  const collectSql = `SELECT * FROM article_collection WHERE article_id = ? AND user_id = ?`;
+  const collect = await dbquery(collectSql, [id, userId]);
+  if (collect.length > 0) {
+    return res.status(400).json({ code: 400, msg: '您已收藏该文章' });
+  }
+
+  const sql = `INSERT INTO article_collection (article_id, user_id) VALUES (?, ?)`;
+  try {
+    await dbquery(sql, [id, userId]);
+    res.json({ code: 200, msg: 'success' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 取消收藏文章
+router.post(`/cancelCollect`, requireAuth, async (req, res, next) => {
+  const { id, userId } = req.body;
+  // 检查用户是否已收藏该文章
+  const collectSql = `SELECT * FROM article_collection WHERE article_id = ? AND user_id = ?`;
+  const collect = await dbquery(collectSql, [id, userId]);
+  if (collect.length === 0) {
+    return res.status(400).json({ code: 400, msg: '您未收藏该文章' });
+  }
+  const sql = `DELETE FROM article_collection WHERE article_id = ? AND user_id = ?`;
+  try {
+    await dbquery(sql, [id, userId]);
+    res.json({ code: 200, msg: 'success' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 点赞/喜欢文章
+router.post(`/like`, requireAuth, async (req, res, next) => {
+  const { id, userId } = req.body;
+  // 检查用户是否已点赞/喜欢该文章
+  const likeSql = `SELECT * FROM article_like WHERE article_id = ? AND user_id = ?`;
+  const like = await dbquery(likeSql, [id, userId]);
+  if (like.length > 0) {
+    return res.status(400).json({ code: 400, msg: '您已点赞/喜欢该文章' });
+  }
+
+  const sql = `INSERT INTO article_like (article_id, user_id) VALUES (?, ?)`;
+  try {
+    await dbquery(sql, [id, userId]);
+    res.json({ code: 200, msg: 'success' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 取消点赞/喜欢文章
+router.post(`/cancelLike`, requireAuth, async (req, res, next) => {
+  const { id, userId } = req.body;
+  // 检查用户是否已点赞/喜欢该文章
+  const likeSql = `SELECT * FROM article_like WHERE article_id = ? AND user_id = ?`;
+  const like = await dbquery(likeSql, [id, userId]);
+  if (like.length === 0) {
+    return res.status(400).json({ code: 400, msg: '您未点赞/喜欢该文章' });
+  }
+  const sql = `DELETE FROM article_like WHERE article_id = ? AND user_id = ?`;
+  try {
+    await dbquery(sql, [id, userId]);
+    res.json({ code: 200, msg: 'success' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 获取所有分类
+router.get(`/categories`, async (req, res, next) => {
+  const sql = `SELECT * FROM category`;
+  try {
+    const results = await dbquery(sql);
+    res.json({ code: 200, data: results });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 统计浏览量 两个功能
+// 1：单纯统计文章浏览量，不管有没有登录，不管是不是同一个用户，都增加浏览量
+// 2：如果用户登录时，统计该用户是否已浏览过该文章，保存到用户浏览记录表
+router.get(`/view`, async (req, res, next) => {
+  const { id } = req.query;
+  const userId = req.session?.user?.id;
+  try {
+    const sql = `UPDATE articles SET views = views + 1 WHERE id = ?`;
+    if (userId) {
+      // 检查用户是否已浏览过该文章
+      const viewSql = `SELECT * FROM user_view_record WHERE article_id = ? AND user_id = ?`;
+      const view = await dbquery(viewSql, [id, userId]);
+      let sql = '';
+      if (view.length === 0) {
+        // 没有浏览过，插入记录
+        sql = `INSERT INTO user_view_record (article_id, user_id, view_count) VALUES (?, ?, 1)`;
+      } else {
+        // 已浏览过，更新浏览时间
+        sql = `UPDATE user_view_record SET view_count = view_count + 1 WHERE article_id = ? AND user_id = ?`;
+      }
+      await dbquery(sql, [id, userId]);
+    }
+    await dbquery(sql, [id]);
+    res.json({ code: 200, msg: 'success' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 统计用户数和浏览量
+router.get(`/count`, async (req, res, next) => {
+  try {
+    const dsql = `SELECT COUNT(*) as userCount FROM user`;
+    const viewSql = `SELECT SUM(views) as viewCount FROM articles`;
+    const [dresults, vresults] = await Promise.all([dbquery(dsql), dbquery(viewSql)]);
+    res.json({
+      code: 200,
+      data: {
+        userCount: dresults[0].userCount,
+        viewCount: vresults[0].viewCount
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 获取相似文章列表
+router.get(`/similar`, async (req, res, next) => {
+  const { id, category_id } = req.query;
+  try {
+    const sql = `
+    SELECT 
+      articles.*, category.name as categoryName,
+      (SELECT COUNT(*) FROM article_like WHERE article_id = articles.id) AS likeCount
+      FROM articles
+      left join category on articles.category_id = category.id
+    WHERE articles.id != ? AND articles.status = ? AND articles.category_id = ? ORDER BY articles.views DESC LIMIT 5`;
+    const results = await dbquery(sql, [id, 1, category_id]);
+    if (results.length === 0) {
+      return res.status(404).json({ code: 404, msg: '没有相似文章' });
+    }
+    const resultData = results.length > 4 ? results.slice(0, 4) : results;
+    res.json({ code: 200, data: resultData });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get(`/myCollectArticle`, requireAuth, async (req, res, next) => {
+  const userId = req.session?.user?.id;
+  // 要先查文章表，然后根据文章表的分类id去查分类表，不然没有分类的id，顺序不能反
+  const sql = `
+    select 
+      article_collection.*,
+      user.username,
+      articles.title,
+      articles.views,
+      articles.description,
+      articles.thumb,
+      articles.content,
+      category.name as categoryName
+      from article_collection 
+      left join user on article_collection.user_id = user.id
+      left join articles on article_collection.article_id = articles.id
+      left join category on articles.category_id = category.id
+      where articles.status = 1 and article_collection.user_id = ?
+  `;
+  try {
+    const results = await dbquery(sql, [userId]);
+    console.log(results, '获取用户收藏文章');
+    if (results.length === 0) {
+      return res.status(404).json({ code: 404, msg: '用户未收藏文章' });
+    }
+    res.json({ code: 200, msg: 'success', data: results });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 统计我的浏览记录
+router.get(`/myViewArticle`, requireAuth, async (req, res, next) => {
+  const userId = req.session?.user?.id;
+  // 要先查文章表，然后根据文章表的分类id去查分类表，不然没有分类的id，顺序不能反
+  const sql = `
+    select 
+      user_view_record.*,
+      user.username,
+      articles.title,
+      articles.views,
+      articles.description,
+      articles.thumb,
+      articles.content,
+      category.name as categoryName
+      from user_view_record 
+      left join user on user_view_record.user_id = user.id
+      left join articles on user_view_record.article_id = articles.id
+      left join category on articles.category_id = category.id
+      where articles.status = 1 and user_view_record.user_id = ?
+  `;
+  try {
+    const results = await dbquery(sql, [userId]);
+    console.log(results, '获取用户浏览文章');
+    if (results.length === 0) {
+      return res.status(404).json({ code: 404, msg: '用户未浏览文章' });
+    }
+    res.json({ code: 200, msg: 'success', data: results });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get(`/:id`, async (req, res, next) => {
+  const { id } = req.params;
+  const { status = 1 } = req.query;
+  console.log(status, 'status', id);
+  // ⚠️ /:id 会贪心匹配所有子路径（/categories /list 等），先校验 id 是不是正整数
+  // 不是就走 next()，让 Express 继续匹配后面注册的精确路由（categories 等）
+  if (!/^\d+$/.test(id)) return next();
+  const userId = req.session?.user?.id;
+  const sql = `
+    select 
+      articles.*,
+      article_collection.user_id as collectUserId,
+      article_like.user_id as likeUserId
+      from articles 
+      left join category 
+        on articles.category_id = category.id
+      left join article_collection 
+        on articles.id = article_collection.article_id
+        and article_collection.user_id = ?   
+      left join article_like 
+        on articles.id = article_like.article_id
+        and article_like.user_id = ?  
+      where articles.id = ? and articles.status = ?
+  `;
+  try {
+    const results = await dbquery(sql, [userId, userId, id, status]);
+    console.log(results, '获取单个文章');
+    if (results.length === 0) {
+      return res.status(404).json({ code: 404, msg: '文章未找到' });
+    }
+    res.json({ code: 200, msg: 'success', data: results[0] });
   } catch (err) {
     next(err);
   }
