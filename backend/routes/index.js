@@ -365,17 +365,17 @@ router.get(`/myViewArticle`, requireAuth, async (req, res, next) => {
 
 router.get(`/:id`, async (req, res, next) => {
   const { id } = req.params;
-  const { status = 1 } = req.query;
-  console.log(status, 'status', id);
+  const { status } = req.query;
   // ⚠️ /:id 会贪心匹配所有子路径（/categories /list 等），先校验 id 是不是正整数
   // 不是就走 next()，让 Express 继续匹配后面注册的精确路由（categories 等）
   if (!/^\d+$/.test(id)) return next();
   const userId = req.session?.user?.id;
   const sql = `
-    select 
+    select distinct
       articles.*,
       article_collection.user_id as collectUserId,
-      article_like.user_id as likeUserId
+      article_like.user_id as likeUserId,
+      category.name as categoryName
       from articles 
       left join category 
         on articles.category_id = category.id

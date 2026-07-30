@@ -41,6 +41,7 @@ const Detail = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const username = searchParams.get('username');
+  const status = searchParams.get('status') || 1;
   const navigate = useNavigate();
 
   const [blogDetail, setBlogDetail] = useState(null);
@@ -55,7 +56,7 @@ const Detail = () => {
 
   const fetchBlogDetail = async () => {
     try {
-      const { data } = await getBlogDetail(id);
+      const { data } = await getBlogDetail(id, { status });
       const isCollect = data.collectUserId !== null && data.collectUserId !== undefined;
       const isLike = data.likeUserId !== null && data.likeUserId !== undefined;
       setBlogDetail(data);
