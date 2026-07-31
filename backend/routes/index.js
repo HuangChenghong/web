@@ -53,7 +53,7 @@ router.get('/', async (req, res, next) => {
     const results = await dbquery(sql, params);
 
     // 查询总数的的参数
-    const totalParams = [1];
+    const totalParams = [status];
     if (title) {
       totalSql += ` and title LIKE ?`;
       totalParams.push(searchVal);
@@ -131,7 +131,7 @@ router.post(`/delete`, requireAuth, async (req, res, next) => {
   const searchSql = `SELECT * FROM articles WHERE id = ?`;
   const article = await dbquery(searchSql, [id]);
   if (article.length === 0) {
-    return res.status(404).json({ code: 404, msg: '文章未找到' });
+    return res.json({ code: 404, msg: '文章未找到' });
   }
   // 检查作者是否匹配
   if (article[0].user_id !== req.user.id) {
@@ -291,7 +291,7 @@ router.get(`/similar`, async (req, res, next) => {
     WHERE articles.id != ? AND articles.status = ? AND articles.category_id = ? ORDER BY articles.views DESC LIMIT 5`;
     const results = await dbquery(sql, [id, 1, category_id]);
     if (results.length === 0) {
-      return res.status(404).json({ code: 404, msg: '没有相似文章' });
+      return res.json({ code: 200, msg: '没有相似文章' });
     }
     const resultData = results.length > 4 ? results.slice(0, 4) : results;
     res.json({ code: 200, data: resultData });
@@ -301,7 +301,10 @@ router.get(`/similar`, async (req, res, next) => {
 });
 
 router.get(`/myCollectArticle`, requireAuth, async (req, res, next) => {
+  const { page, pageSize } = req.query;
   const userId = req.session?.user?.id;
+  const pageNum = Number(page);
+  const pageSizeNum = Number(pageSize);
   // 要先查文章表，然后根据文章表的分类id去查分类表，不然没有分类的id，顺序不能反
   const sql = `
     select 
@@ -317,15 +320,19 @@ router.get(`/myCollectArticle`, requireAuth, async (req, res, next) => {
       left join user on article_collection.user_id = user.id
       left join articles on article_collection.article_id = articles.id
       left join category on articles.category_id = category.id
-      where articles.status = 1 and article_collection.user_id = ?
+      where articles.status = 1 and article_collection.user_id = ? limit ? offset ?
+  `;
+
+  const totalSql = `
+    select count(*) as total from article_collection where article_collection.user_id = ?
   `;
   try {
-    const results = await dbquery(sql, [userId]);
-    console.log(results, '获取用户收藏文章');
+    const totalRes = await dbquery(totalSql, [userId]);
+    const results = await dbquery(sql, [userId, pageSizeNum, (pageNum - 1) * pageSizeNum]);
     if (results.length === 0) {
-      return res.status(404).json({ code: 404, msg: '用户未收藏文章' });
+      return res.json({ code: 404, msg: '用户未收藏文章' });
     }
-    res.json({ code: 200, msg: 'success', data: results });
+    res.json({ code: 200, msg: 'success', data: results, total: totalRes[0].total });
   } catch (err) {
     next(err);
   }
@@ -333,6 +340,9 @@ router.get(`/myCollectArticle`, requireAuth, async (req, res, next) => {
 
 // 统计我的浏览记录
 router.get(`/myViewArticle`, requireAuth, async (req, res, next) => {
+  const { page, pageSize } = req.query;
+  const pageNum = Number(page);
+  const pageSizeNum = Number(pageSize);
   const userId = req.session?.user?.id;
   // 要先查文章表，然后根据文章表的分类id去查分类表，不然没有分类的id，顺序不能反
   const sql = `
@@ -350,19 +360,122 @@ router.get(`/myViewArticle`, requireAuth, async (req, res, next) => {
       left join articles on user_view_record.article_id = articles.id
       left join category on articles.category_id = category.id
       where articles.status = 1 and user_view_record.user_id = ?
+      limit ? offset ?
   `;
+  const totalSql = `select count(*) as total from user_view_record where user_view_record.user_id = ?`;
   try {
-    const results = await dbquery(sql, [userId]);
-    console.log(results, '获取用户浏览文章');
+    const totalRes = await dbquery(totalSql, [userId]);
+    console.log(totalRes);
+    const results = await dbquery(sql, [userId, pageSizeNum, (pageNum - 1) * pageSizeNum]);
+    // console.log(results, '获取用户浏览文章');
     if (results.length === 0) {
-      return res.status(404).json({ code: 404, msg: '用户未浏览文章' });
+      return res.json({ code: 200, msg: '用户未浏览文章' });
     }
-    res.json({ code: 200, msg: 'success', data: results });
+    res.json({ code: 200, msg: 'success', data: results, total: totalRes[0].total });
   } catch (err) {
     next(err);
   }
 });
 
+router.post(`/createComment`, requireAuth, async (req, res, next) => {
+  const { article_id, content, parent_id, user_id } = req.body;
+  if (!article_id || !content) {
+    return res.status(400).json({ code: 400, msg: '文章id和内容不能为空', data: {} });
+  }
+  const sql = `
+    insert into article_comment (article_id, content, parent_id, user_id)
+    values (?, ?, ?, ?)
+  `;
+  try {
+    const res1 = await dbquery(sql, [article_id, content, parent_id, user_id]);
+    console.log(res1, '创建评论');
+    res.json({ code: 200, msg: 'success', data: {} });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 获取文章评论列表
+router.get(`/:id/comment`, async (req, res, next) => {
+  const { id } = req.params;
+  const userId = req.session?.user?.id;
+  const { page, pageSize } = req.query;
+  const pageNum = parseInt(page) || 1;
+  const pageSizeNum = parseInt(pageSize) || 10;
+  if (!id) {
+    return res.status(400).json({ code: 400, msg: '文章id不能为空', data: {} });
+  }
+  // 1：要判断当前用户是否点赞，如果已经点赞，则不能重复点赞，2：还要获取总得点赞数
+  const sql = `
+    select 
+      article_comment.*,
+      user.username,
+      user.avater,
+      (select COUNT(*) from comment_like where comment_like.comment_id = article_comment.id) as likeCount,
+      (select COUNT(*) from comment_like where comment_like.comment_id = article_comment.id and comment_like.user_id = ?) as isLike
+      from article_comment 
+      left join user on article_comment.user_id = user.id    
+      where article_comment.article_id = ?
+      order by article_comment.id desc
+      limit ? offset ?
+  `;
+  try {
+    // 先查询评论总数
+    const totalSql = `
+      select count(*) as total
+      from article_comment 
+      where article_comment.article_id = ?
+    `;
+    const totalResult = await dbquery(totalSql, [id]);
+    const total = totalResult[0].total || 0;
+    const results = await dbquery(sql, [userId, id, pageSizeNum, (pageNum - 1) * pageSizeNum]);
+    if (results.length === 0) {
+      return res.json({ code: 200, msg: '没有评论' });
+    }
+    res.json({ code: 200, data: results, total });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 给评论点赞/取消点赞
+router.post(`/likeComment`, requireAuth, async (req, res, next) => {
+  const { comment_id, user_id } = req.body;
+  if (!comment_id) {
+    return res.status(400).json({ code: 400, msg: '评论id不能为空' });
+  }
+  // 后端主动去判断，不能相信前端传的数据, 实际上user_id也应该从session中获取
+  const hasLike = await dbquery('SELECT * FROM comment_like WHERE comment_id = ? AND user_id = ?', [
+    comment_id,
+    user_id
+  ]);
+
+  if (hasLike && hasLike.length > 0) {
+    const sql = `
+      delete from comment_like where comment_id = ? and user_id = ?
+    `;
+    try {
+      await dbquery(sql, [comment_id, user_id]);
+      res.json({ code: 200, msg: '取消点赞' });
+    } catch (err) {
+      next(err);
+    }
+    return;
+  }
+
+  const sql = `
+    insert into comment_like (comment_id, user_id)
+    values (?, ?)
+  `;
+  try {
+    await dbquery(sql, [comment_id, user_id]);
+    res.json({ code: 200, msg: 'success' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 获取文章详情
 router.get(`/:id`, async (req, res, next) => {
   const { id } = req.params;
   const { status } = req.query;

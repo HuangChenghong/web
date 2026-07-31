@@ -490,6 +490,14 @@
   color: var(--theme-text-faint);
   font-size: 14px;
 }
+.blog-detail__pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 36px;
+  padding: 8px 0;
+}
+
+
 
 /* 小屏适配 */
 @media (max-width: 768px) {

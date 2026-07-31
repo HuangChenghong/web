@@ -92,3 +92,18 @@ export function getMyCollectArticle(params) {
 export function getMyViewArticle(params) {
   return request.get('/blogs/myViewArticle', params);
 }
+
+// 新增评论
+export function createComment(data) {
+  return request.post('/blogs/createComment', data);
+}
+
+// 获取文章评论列表
+export function getCommentList(id, params) {
+  return request.get(`/blogs/${id}/comment`, params);
+}
+
+// 给评论点赞
+export function likeComment(data) {
+  return request.post('/blogs/likeComment', data);
+}

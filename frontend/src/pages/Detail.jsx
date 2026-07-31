@@ -7,7 +7,10 @@ import {
   getViewNum,
   likeBlog,
   cancelLike,
-  getSimilarBlogs
+  getSimilarBlogs,
+  createComment,
+  getCommentList,
+  likeComment
 } from '@/api/blog';
 import {
   HeartOutlined,
@@ -20,7 +23,7 @@ import {
   FolderOutlined,
   LeftOutlined
 } from '@ant-design/icons';
-import { Avatar, Input, Tag, message } from 'antd';
+import { Avatar, Input, Tag, message, Pagination } from 'antd';
 import { imgUrl } from '@/utils/imgUrl';
 import { formatDate } from '@/utils/common';
 import './detail.css';
@@ -53,6 +56,9 @@ const Detail = () => {
   const [similarBlogs, setSimilarBlogs] = useState([]);
   const [commentInput, setCommentInput] = useState('');
   const [messageApi, contextHolder] = message.useMessage();
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(8);
+  const [total, setTotal] = useState(0);
 
   const fetchBlogDetail = async () => {
     try {
@@ -73,9 +79,26 @@ const Detail = () => {
   useEffect(() => {
     handleView();
     fetchBlogDetail();
-    setComments(mockComments);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    console.log(page, 'page');
+    fetchCommentsList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, id]);
+
+  // 获取文章评论列表
+  const fetchCommentsList = async () => {
+    try {
+      const { data, total } = await getCommentList(id, { page, pageSize });
+      console.log(data, '获取文章评论列表');
+      setComments(data || []);
+      setTotal(total || 0);
+    } catch (error) {
+      console.error('获取文章评论列表失败:', error);
+    }
+  };
 
   // 获取相似文章列表
   const fetchSimilarBlogs = async params => {
@@ -96,6 +119,31 @@ const Detail = () => {
       }
     } catch (error) {
       console.error('获取浏览量失败:', error);
+    }
+  };
+
+  // 点赞功能评论
+  const handleCommentLike = async comment_id => {
+    try {
+      const data = { comment_id, user_id: localStorage.getItem('userId') };
+      const response = await likeComment(data);
+      if (response.code === 200) {
+        const result = comments.map(comment => {
+          if (comment.id === comment_id) {
+            const isLike = comment.isLike;
+            return {
+              ...comment,
+              isLike: !isLike,
+              likeCount: isLike ? comment.likeCount - 1 : comment.likeCount + 1
+            };
+          }
+          return comment;
+        });
+        setComments(result);
+        // messageApi.success(newLiked ? '点赞成功' : '取消点赞');
+      }
+    } catch (error) {
+      console.error('点赞博客失败:', error);
     }
   };
 
@@ -130,24 +178,29 @@ const Detail = () => {
     }
   };
 
-  // 评论点赞
-  const handleCommentLike = commentId => {
-    setComments(prev => prev.map(c => (c.id === commentId ? { ...c, likes: c.likes + 1 } : c)));
-  };
-
   // 提交评论
-  const handleSubmitComment = () => {
+  const handleSubmitComment = async () => {
     if (!commentInput.trim()) return;
     const newComment = {
-      id: Date.now(),
-      username: localStorage.getItem('username') || '匿名用户',
-      avater: localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')).avater : '',
+      article_id: id,
       content: commentInput,
-      createdAt: formatDate(new Date()),
-      likes: 0
+      parent_id: null,
+      user_id: localStorage.getItem('userId')
     };
-    setComments(prev => [...prev, newComment]);
-    setCommentInput('');
+    // setComments(prev => [...prev, newComment]);
+    try {
+      const res = await createComment(newComment);
+      if (res.code === 200) {
+        messageApi.success('评论成功');
+        fetchCommentsList();
+      } else {
+        messageApi.error('评论失败');
+      }
+      setCommentInput('');
+    } catch (error) {
+      console.error('评论失败:', error);
+      messageApi.error('评论失败');
+    }
   };
 
   // 返回上一页，兜底：直接访问详情页时回首页
@@ -316,14 +369,29 @@ const Detail = () => {
                     </div>
                     <p className='blog-detail__comment-text'>{item.content}</p>
                     <div className='blog-detail__comment-footer'>
-                      <button className='blog-detail__comment-like' onClick={() => handleCommentLike(item.id)}>
-                        <LikeOutlined />
-                        <span>{item.likes}</span>
+                      <button
+                        className={item.isLike ? 'active blog-detail__comment-like' : 'blog-detail__comment-like'}
+                        onClick={() => handleCommentLike(item.id)}
+                      >
+                        {item.isLike ? <LikeOutlined /> : <HeartOutlined />}
+                        <span>
+                          {item.likes}
+                          {item.likeCount}
+                        </span>
                       </button>
                     </div>
                   </div>
                 </div>
               ))}
+              <div className='blog-detail__pagination'>
+                <Pagination
+                  current={page}
+                  pageSize={pageSize}
+                  total={total}
+                  onChange={p => setPage(p)}
+                  showSizeChanger={false}
+                />
+              </div>
             </div>
           )}
         </div>

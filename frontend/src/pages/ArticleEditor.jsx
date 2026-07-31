@@ -476,7 +476,7 @@ const ArticleEditor = () => {
               <div className='editor-form__actions-right'>
                 {/* 保存草稿（仅 UI）,如果是已经发布的 */}
                 <Button size='large' className='editor-form__btn editor-form__btn--draft' onClick={saveDraft}>
-                  撤销为草稿
+                  存为草稿
                 </Button>
                 <Button
                   type='primary'
@@ -490,7 +490,6 @@ const ArticleEditor = () => {
                   }}
                 >
                   发布文章
-                  {/* {id ? '保存修改' : '发布文章'} */}
                 </Button>
               </div>
             </div>
