@@ -55,6 +55,9 @@ const Detail = () => {
   const [comments, setComments] = useState([]);
   const [similarBlogs, setSimilarBlogs] = useState([]);
   const [commentInput, setCommentInput] = useState('');
+  // 二级回复状态：replyTo = { parentId, replyToUserId, replyToUsername, replyToCommentId }
+  const [replyTo, setReplyTo] = useState(null);
+  const [replyInput, setReplyInput] = useState('');
   const [messageApi, contextHolder] = message.useMessage();
   const [page, setPage] = useState(1);
   const [pageSize] = useState(8);
@@ -122,28 +125,36 @@ const Detail = () => {
     }
   };
 
-  // 点赞功能评论
+  // 点赞功能评论（支持一级和二级评论）
   const handleCommentLike = async comment_id => {
     try {
       const data = { comment_id, user_id: localStorage.getItem('userId') };
       const response = await likeComment(data);
       if (response.code === 200) {
+        const toggle = c => {
+          const isLike = c.isLike;
+          return {
+            ...c,
+            isLike: !isLike,
+            likeCount: isLike ? c.likeCount - 1 : c.likeCount + 1
+          };
+        };
         const result = comments.map(comment => {
           if (comment.id === comment_id) {
-            const isLike = comment.isLike;
+            return toggle(comment);
+          }
+          if (comment.children && comment.children.length > 0) {
             return {
               ...comment,
-              isLike: !isLike,
-              likeCount: isLike ? comment.likeCount - 1 : comment.likeCount + 1
+              children: comment.children.map(child => (child.id === comment_id ? toggle(child) : child))
             };
           }
           return comment;
         });
         setComments(result);
-        // messageApi.success(newLiked ? '点赞成功' : '取消点赞');
       }
     } catch (error) {
-      console.error('点赞博客失败:', error);
+      console.error('点赞评论失败:', error);
     }
   };
 
@@ -200,6 +211,49 @@ const Detail = () => {
     } catch (error) {
       console.error('评论失败:', error);
       messageApi.error('评论失败');
+    }
+  };
+
+  // 点击"回复"按钮，展开对应评论下的回复输入框
+  // parentComment: 一级评论对象；targetComment: 实际被回复的评论（可能是一级也可能是二级）
+  const handleReplyClick = (parentComment, targetComment) => {
+    // 同一条评论再次点击则收起
+    if (replyTo && replyTo.replyToCommentId === targetComment.id) {
+      setReplyTo(null);
+      setReplyInput('');
+      return;
+    }
+    setReplyTo({
+      parentId: parentComment.id,
+      replyToUserId: targetComment.user_id,
+      replyToUsername: targetComment.username,
+      replyToCommentId: targetComment.id
+    });
+    setReplyInput('');
+  };
+
+  // 提交二级回复
+  const handleSubmitReply = async () => {
+    if (!replyInput.trim() || !replyTo) return;
+    try {
+      const res = await createComment({
+        article_id: id,
+        content: replyInput,
+        parent_id: replyTo.parentId,
+        reply_to_user_id: replyTo.replyToUserId,
+        user_id: localStorage.getItem('userId')
+      });
+      if (res.code === 200) {
+        messageApi.success('回复成功');
+        setReplyInput('');
+        setReplyTo(null);
+        fetchCommentsList();
+      } else {
+        messageApi.error('回复失败');
+      }
+    } catch (error) {
+      console.error('回复失败:', error);
+      messageApi.error('回复失败');
     }
   };
 
@@ -379,7 +433,102 @@ const Detail = () => {
                           {item.likeCount}
                         </span>
                       </button>
+                      <button className='blog-detail__comment-reply-btn' onClick={() => handleReplyClick(item, item)}>
+                        回复
+                      </button>
                     </div>
+
+                    {/* 回复输入框（点击一级评论的"回复"展开） */}
+                    {replyTo && replyTo.replyToCommentId === item.id && (
+                      <div className='blog-detail__reply-input'>
+                        <Input.TextArea
+                          placeholder={`回复 @${replyTo.replyToUsername}...`}
+                          value={replyInput}
+                          onChange={e => setReplyInput(e.target.value)}
+                          onPressEnter={e => {
+                            if (e.ctrlKey || e.metaKey) handleSubmitReply();
+                          }}
+                          rows={2}
+                          className='blog-detail__comment-textarea'
+                        />
+                        <div className='blog-detail__comment-actions'>
+                          <span className='blog-detail__comment-tip'>Ctrl + Enter 提交</span>
+                          <button
+                            className='blog-detail__comment-submit'
+                            onClick={handleSubmitReply}
+                            disabled={!replyInput.trim()}
+                          >
+                            回复
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 子评论列表 */}
+                    {item.children && item.children.length > 0 && (
+                      <div className='blog-detail__comment-children'>
+                        {item.children.map(child => (
+                          <div key={child.id} className='blog-detail__comment-item blog-detail__comment-item--reply'>
+                            <div className='blog-detail__comment-avatar'>
+                              <Avatar size='small' src={child.avater ? imgUrl(child.avater) : undefined} />
+                            </div>
+                            <div className='blog-detail__comment-content'>
+                              <div className='blog-detail__comment-header'>
+                                <span className='blog-detail__comment-author'>{child.username}</span>
+                                {child.reply_to_username && child.reply_to_username !== item.username && (
+                                  <span className='blog-detail__comment-reply-to'>回复 @{child.reply_to_username}</span>
+                                )}
+                                <span className='blog-detail__comment-time'>{child.createdAt}</span>
+                              </div>
+                              <p className='blog-detail__comment-text'>{child.content}</p>
+                              <div className='blog-detail__comment-footer'>
+                                <button
+                                  className={
+                                    child.isLike ? 'active blog-detail__comment-like' : 'blog-detail__comment-like'
+                                  }
+                                  onClick={() => handleCommentLike(child.id)}
+                                >
+                                  {child.isLike ? <LikeOutlined /> : <HeartOutlined />}
+                                  <span>{child.likeCount}</span>
+                                </button>
+                                <button
+                                  className='blog-detail__comment-reply-btn'
+                                  onClick={() => handleReplyClick(item, child)}
+                                >
+                                  回复
+                                </button>
+                              </div>
+
+                              {/* 回复输入框（点击二级评论的"回复"展开） */}
+                              {replyTo && replyTo.replyToCommentId === child.id && (
+                                <div className='blog-detail__reply-input'>
+                                  <Input.TextArea
+                                    placeholder={`回复 @${replyTo.replyToUsername}...`}
+                                    value={replyInput}
+                                    onChange={e => setReplyInput(e.target.value)}
+                                    onPressEnter={e => {
+                                      if (e.ctrlKey || e.metaKey) handleSubmitReply();
+                                    }}
+                                    rows={2}
+                                    className='blog-detail__comment-textarea'
+                                  />
+                                  <div className='blog-detail__comment-actions'>
+                                    <span className='blog-detail__comment-tip'>Ctrl + Enter 提交</span>
+                                    <button
+                                      className='blog-detail__comment-submit'
+                                      onClick={handleSubmitReply}
+                                      disabled={!replyInput.trim()}
+                                    >
+                                      回复
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

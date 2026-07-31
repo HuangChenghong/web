@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarOutlined, EyeOutlined, LikeOutlined, FolderOutlined } from '@ant-design/icons';
-import { Pagination } from 'antd';
-import { getMyViewArticle } from '@/api/blog';
+import {
+  CalendarOutlined,
+  EyeOutlined,
+  LikeOutlined,
+  FolderOutlined,
+  DeleteOutlined,
+  ExclamationCircleFilled
+} from '@ant-design/icons';
+import { Pagination, Modal, message } from 'antd';
+import { getMyViewArticle, deleteViewRecord } from '@/api/blog';
 import { imgUrl } from '@/utils/imgUrl';
 import { formatDate } from '@/utils/common';
 import './myviews.css';
@@ -20,16 +27,56 @@ const categoryAccents = {
 const MyViews = () => {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(3);
+  const [pageSize] = useState(6);
   const [total, setTotal] = useState(0);
   const [viewHistory, setViewHistory] = useState([]);
+  const [modal, contextHolder] = Modal.useModal();
+  const [messageApi, messageContextHolder] = message.useMessage();
 
-  useEffect(() => {
+  const fetchData = () => {
     getMyViewArticle({ page, pageSize }).then(res => {
       setViewHistory(res.data || []);
       setTotal(res.total || 0);
     });
+  };
+
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
+
+  // 删除浏览记录
+  const handleDelete = async articleId => {
+    const userId = Number(localStorage.getItem('userId'));
+    try {
+      const res = await deleteViewRecord({ id: articleId, userId });
+      if (res.code === 200) {
+        messageApi.success('已删除浏览记录');
+        if (viewHistory.length === 1 && page > 1) {
+          setPage(page - 1);
+        } else {
+          fetchData();
+        }
+      } else {
+        messageApi.error(res.msg || '删除失败');
+      }
+    } catch (err) {
+      messageApi.error('删除失败');
+    }
+  };
+
+  const confirmDelete = (e, articleId) => {
+    e.stopPropagation();
+    modal.confirm({
+      title: '删除浏览记录',
+      icon: <ExclamationCircleFilled />,
+      content: '确定要删除这条浏览记录吗？',
+      okText: '删除',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: () => handleDelete(articleId)
+    });
+  };
 
   // 取首字符作为头像
   const getInitial = (name = '') => {
@@ -41,6 +88,9 @@ const MyViews = () => {
 
   return (
     <div className='my-views'>
+      {contextHolder}
+      {messageContextHolder}
+
       {/* 标题 */}
       <div className='my-views__header'>
         <h2 className='my-views__title'>
@@ -132,6 +182,17 @@ const MyViews = () => {
                     alt={item.title}
                     loading='lazy'
                   />
+                </div>
+
+                {/* 删除按钮 */}
+                <div className='my-views__item-actions' onClick={e => e.stopPropagation()}>
+                  <button
+                    className='my-views__action my-views__action--delete'
+                    onClick={e => confirmDelete(e, item.article_id)}
+                    title='删除记录'
+                  >
+                    <DeleteOutlined />
+                  </button>
                 </div>
               </li>
             );

@@ -475,6 +475,66 @@
   background: rgba(239, 68, 68, 0.05);
 }
 
+/* 回复按钮 */
+.blog-detail__comment-reply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  color: var(--theme-text-faint);
+  background: transparent;
+  border: 1px solid var(--theme-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.blog-detail__comment-reply-btn:hover {
+  color: var(--theme-primary);
+  border-color: var(--theme-primary);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+/* 回复目标用户名 */
+.blog-detail__comment-reply-to {
+  font-size: 13px;
+  color: var(--theme-primary);
+  font-weight: 500;
+}
+
+/* 回复输入框 */
+.blog-detail__reply-input {
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--theme-surface);
+  border-radius: 10px;
+  border: 1px solid var(--theme-border);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+/* 子评论容器 */
+.blog-detail__comment-children {
+  margin-top: 14px;
+  padding-left: 8px;
+  border-left: 2px solid var(--theme-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.3s ease;
+}
+
+/* 二级评论样式（比一级稍紧凑） */
+.blog-detail__comment-item--reply {
+  padding: 14px;
+  background: var(--theme-surface);
+}
+
+.blog-detail__comment-item--reply .blog-detail__comment-text {
+  margin-bottom: 8px;
+}
+
 /* 加载中 */
 .blog-detail__loading {
   text-align: center;

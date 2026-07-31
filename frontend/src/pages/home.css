@@ -148,6 +148,131 @@ h1:hover {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5), 0 0 0 4px var(--theme-primary);
 }
 
+/* === 消息通知铃铛 === */
+.nav-item--bell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.nav-item--bell:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.nav-item--bell .ant-badge {
+  color: #fff;
+}
+
+/* 通知面板 */
+.notif-panel {
+  width: 340px;
+  max-width: 90vw;
+  background: var(--theme-surface);
+  border-radius: 12px;
+  border: 1px solid var(--theme-border);
+  box-shadow: 0 8px 32px var(--theme-shadow-hover);
+  overflow: hidden;
+}
+
+.notif-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text-strong);
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.notif-panel__count {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--theme-text-faint);
+}
+
+.notif-panel__list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.notif-panel__empty {
+  padding: 40px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--theme-text-faint);
+}
+
+.notif-panel__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.18s;
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.notif-panel__item:last-child {
+  border-bottom: none;
+}
+
+.notif-panel__item:hover {
+  background: var(--theme-background);
+}
+
+.notif-panel__item--unread {
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.notif-panel__item-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--theme-background);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+
+.notif-panel__item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-panel__item-text {
+  margin: 0 0 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--theme-text-muted);
+  word-break: break-word;
+}
+
+.notif-panel__item-time {
+  font-size: 11px;
+  color: var(--theme-text-faint);
+}
+
+.notif-panel__item-dot {
+  position: absolute;
+  top: 14px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px var(--theme-surface);
+}
+
 /* 小屏适配 */
 @media (max-width: 768px) {
   header {
@@ -162,7 +287,16 @@ h1:hover {
     display: none;
   }
 
+  /* 铃铛图标不被隐藏 */
+  .nav-item--bell span:last-child {
+    display: inline-flex;
+  }
+
   .nav-item--user-dropdown span:first-child {
     display: none;
+  }
+
+  .notif-panel {
+    width: 90vw;
   }
 }

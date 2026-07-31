@@ -93,6 +93,11 @@ export function getMyViewArticle(params) {
   return request.get('/blogs/myViewArticle', params);
 }
 
+// 删除浏览记录
+export function deleteViewRecord(data) {
+  return request.post('/blogs/deleteViewRecord', data);
+}
+
 // 新增评论
 export function createComment(data) {
   return request.post('/blogs/createComment', data);
@@ -106,4 +111,19 @@ export function getCommentList(id, params) {
 // 给评论点赞
 export function likeComment(data) {
   return request.post('/blogs/likeComment', data);
+}
+
+// 获取通知列表
+export function getNotifications(params) {
+  return request.get('/blogs/notifications', params);
+}
+
+// 获取未读通知数量
+export function getUnreadCount(params) {
+  return request.get('/blogs/notifications/unreadCount', params);
+}
+
+// 标记通知为已读
+export function markNotificationsRead(data) {
+  return request.post('/blogs/notifications/read', data);
 }

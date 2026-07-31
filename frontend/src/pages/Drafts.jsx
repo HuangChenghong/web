@@ -43,7 +43,7 @@ const Drafts = () => {
   const [drafts, setDrafts] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(5);
+  const [pageSize] = useState(6);
   const [title, setTitle] = useState('');
   const [statusTab, setStatusTab] = useState('2');
   const [loading, setLoading] = useState(false);

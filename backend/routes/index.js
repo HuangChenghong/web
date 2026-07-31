@@ -5,6 +5,40 @@ const requireAuth = require('../middleware/auth');
 // const { upload, storage, buildImageUrl, safeDeleteFile } = require('./utils');
 
 /* =========================================================
+ * 初始化数据库表结构（幂等执行）
+ * - article_comment 增加 reply_to_user_id 字段（二级回复目标用户）
+ * - 创建 notification 消息通知表
+ * ========================================================= */
+const ensureSchema = async () => {
+  try {
+    try {
+      await dbquery(`ALTER TABLE article_comment ADD COLUMN reply_to_user_id INT NULL`);
+      console.log('[schema] article_comment.reply_to_user_id 已添加');
+    } catch (e) {
+      // 字段已存在，忽略
+    }
+    await dbquery(`
+      CREATE TABLE IF NOT EXISTS notification (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL COMMENT '接收者用户id',
+        from_user_id INT COMMENT '发送者用户id',
+        article_id INT COMMENT '关联文章id',
+        type VARCHAR(20) NOT NULL COMMENT 'like/collect/comment',
+        content VARCHAR(255) COMMENT '通知内容',
+        is_read TINYINT(1) DEFAULT 0 COMMENT '0未读 1已读',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_user_read (user_id, is_read),
+        INDEX idx_user_created (user_id, created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='消息通知表'
+    `);
+    console.log('[schema] notification 表已就绪');
+  } catch (e) {
+    console.error('[schema] 初始化失败:', e.message);
+  }
+};
+ensureSchema();
+
+/* =========================================================
  * 文章 CRUD
  * ========================================================= */
 
@@ -159,6 +193,23 @@ router.post(`/collect`, requireAuth, async (req, res, next) => {
   const sql = `INSERT INTO article_collection (article_id, user_id) VALUES (?, ?)`;
   try {
     await dbquery(sql, [id, userId]);
+    // 通知文章作者（自己收藏自己的文章不发通知）
+    try {
+      const articleRes = await dbquery('SELECT user_id, title FROM articles WHERE id = ?', [id]);
+      if (articleRes.length > 0) {
+        const authorId = articleRes[0].user_id;
+        if (Number(authorId) !== Number(userId)) {
+          const fromUser = await dbquery('SELECT username FROM user WHERE id = ?', [userId]);
+          const fromName = fromUser[0]?.username || '有人';
+          await dbquery(
+            `INSERT INTO notification (user_id, from_user_id, article_id, type, content) VALUES (?, ?, ?, 'collect', ?)`,
+            [authorId, userId, id, `${fromName} 收藏了你的文章《${articleRes[0].title}》`]
+          );
+        }
+      }
+    } catch (e) {
+      console.error('[collect] 发送通知失败:', e.message);
+    }
     res.json({ code: 200, msg: 'success' });
   } catch (err) {
     next(err);
@@ -196,6 +247,23 @@ router.post(`/like`, requireAuth, async (req, res, next) => {
   const sql = `INSERT INTO article_like (article_id, user_id) VALUES (?, ?)`;
   try {
     await dbquery(sql, [id, userId]);
+    // 通知文章作者（自己点赞自己的文章不发通知）
+    try {
+      const articleRes = await dbquery('SELECT user_id, title FROM articles WHERE id = ?', [id]);
+      if (articleRes.length > 0) {
+        const authorId = articleRes[0].user_id;
+        if (Number(authorId) !== Number(userId)) {
+          const fromUser = await dbquery('SELECT username FROM user WHERE id = ?', [userId]);
+          const fromName = fromUser[0]?.username || '有人';
+          await dbquery(
+            `INSERT INTO notification (user_id, from_user_id, article_id, type, content) VALUES (?, ?, ?, 'like', ?)`,
+            [authorId, userId, id, `${fromName} 赞了你的文章《${articleRes[0].title}》`]
+          );
+        }
+      }
+    } catch (e) {
+      console.error('[like] 发送通知失败:', e.message);
+    }
     res.json({ code: 200, msg: 'success' });
   } catch (err) {
     next(err);
@@ -215,6 +283,21 @@ router.post(`/cancelLike`, requireAuth, async (req, res, next) => {
   try {
     await dbquery(sql, [id, userId]);
     res.json({ code: 200, msg: 'success' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 删除浏览记录
+router.post(`/deleteViewRecord`, requireAuth, async (req, res, next) => {
+  const { id, userId } = req.body;
+  if (!id || !userId) {
+    return res.status(400).json({ code: 400, msg: '参数缺失' });
+  }
+  const sql = `DELETE FROM user_view_record WHERE article_id = ? AND user_id = ?`;
+  try {
+    await dbquery(sql, [id, userId]);
+    res.json({ code: 200, msg: '删除成功' });
   } catch (err) {
     next(err);
   }
@@ -377,17 +460,18 @@ router.get(`/myViewArticle`, requireAuth, async (req, res, next) => {
   }
 });
 
+// 创建评论
 router.post(`/createComment`, requireAuth, async (req, res, next) => {
-  const { article_id, content, parent_id, user_id } = req.body;
+  const { article_id, content, parent_id, reply_to_user_id, user_id } = req.body;
   if (!article_id || !content) {
     return res.status(400).json({ code: 400, msg: '文章id和内容不能为空', data: {} });
   }
   const sql = `
-    insert into article_comment (article_id, content, parent_id, user_id)
-    values (?, ?, ?, ?)
+    insert into article_comment (article_id, content, parent_id, reply_to_user_id, user_id)
+    values (?, ?, ?, ?, ?)
   `;
   try {
-    const res1 = await dbquery(sql, [article_id, content, parent_id, user_id]);
+    const res1 = await dbquery(sql, [article_id, content, parent_id || null, reply_to_user_id || null, user_id]);
     console.log(res1, '创建评论');
     res.json({ code: 200, msg: 'success', data: {} });
   } catch (err) {
@@ -405,34 +489,62 @@ router.get(`/:id/comment`, async (req, res, next) => {
   if (!id) {
     return res.status(400).json({ code: 400, msg: '文章id不能为空', data: {} });
   }
-  // 1：要判断当前用户是否点赞，如果已经点赞，则不能重复点赞，2：还要获取总得点赞数
+  // 查询一级评论（parent_id IS NULL）
   const sql = `
-    select 
+    select
       article_comment.*,
       user.username,
       user.avater,
       (select COUNT(*) from comment_like where comment_like.comment_id = article_comment.id) as likeCount,
       (select COUNT(*) from comment_like where comment_like.comment_id = article_comment.id and comment_like.user_id = ?) as isLike
-      from article_comment 
-      left join user on article_comment.user_id = user.id    
-      where article_comment.article_id = ?
+      from article_comment
+      left join user on article_comment.user_id = user.id
+      where article_comment.article_id = ? and article_comment.parent_id IS NULL
       order by article_comment.id desc
       limit ? offset ?
   `;
   try {
-    // 先查询评论总数
+    // 一级评论总数
     const totalSql = `
       select count(*) as total
-      from article_comment 
-      where article_comment.article_id = ?
+      from article_comment
+      where article_comment.article_id = ? and article_comment.parent_id IS NULL
     `;
     const totalResult = await dbquery(totalSql, [id]);
     const total = totalResult[0].total || 0;
-    const results = await dbquery(sql, [userId, id, pageSizeNum, (pageNum - 1) * pageSizeNum]);
-    if (results.length === 0) {
-      return res.json({ code: 200, msg: '没有评论' });
+    const topComments = await dbquery(sql, [userId, id, pageSizeNum, (pageNum - 1) * pageSizeNum]);
+    if (topComments.length === 0) {
+      return res.json({ code: 200, data: [], total: 0 });
     }
-    res.json({ code: 200, data: results, total });
+    // 查询这些一级评论下的所有子评论（parent_id 指向一级评论 id）
+    const parentIds = topComments.map(c => c.id);
+    const childSql = `
+      select
+        article_comment.*,
+        user.username,
+        user.avater,
+        reply_user.username as reply_to_username,
+        (select COUNT(*) from comment_like where comment_like.comment_id = article_comment.id) as likeCount,
+        (select COUNT(*) from comment_like where comment_like.comment_id = article_comment.id and comment_like.user_id = ?) as isLike
+        from article_comment
+        left join user on article_comment.user_id = user.id
+        left join user as reply_user on article_comment.reply_to_user_id = reply_user.id
+        where article_comment.parent_id IN (?)
+        order by article_comment.id asc
+    `;
+    const childComments = await dbquery(childSql, [userId, parentIds]);
+    // 按 parent_id 分组挂到一级评论下
+    const childMap = {};
+    childComments.forEach(c => {
+      const pid = c.parent_id;
+      if (!childMap[pid]) childMap[pid] = [];
+      childMap[pid].push(c);
+    });
+    const result = topComments.map(c => ({
+      ...c,
+      children: childMap[c.id] || []
+    }));
+    res.json({ code: 200, data: result, total });
   } catch (err) {
     next(err);
   }
@@ -469,6 +581,66 @@ router.post(`/likeComment`, requireAuth, async (req, res, next) => {
   `;
   try {
     await dbquery(sql, [comment_id, user_id]);
+    res.json({ code: 200, msg: 'success' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/* =========================================================
+ * 消息通知
+ * ========================================================= */
+
+// 获取通知列表
+router.get(`/notifications`, requireAuth, async (req, res, next) => {
+  const userId = req.session?.user?.id;
+  const { page, pageSize } = req.query;
+  const pageNum = parseInt(page) || 1;
+  const pageSizeNum = parseInt(pageSize) || 10;
+  const sql = `
+    select
+      notification.*,
+      u.username as from_username,
+      u.avater as from_avater
+      from notification
+      left join user u on notification.from_user_id = u.id
+      where notification.user_id = ?
+      order by notification.created_at desc
+      limit ? offset ?
+  `;
+  const totalSql = `select count(*) as total from notification where user_id = ?`;
+  try {
+    const totalRes = await dbquery(totalSql, [userId]);
+    const results = await dbquery(sql, [userId, pageSizeNum, (pageNum - 1) * pageSizeNum]);
+    res.json({ code: 200, msg: 'success', data: results, total: totalRes[0].total });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 获取未读通知数量
+router.get(`/notifications/unreadCount`, requireAuth, async (req, res, next) => {
+  const userId = req.session?.user?.id;
+  try {
+    const result = await dbquery(`SELECT COUNT(*) as count FROM notification WHERE user_id = ? AND is_read = 0`, [
+      userId
+    ]);
+    res.json({ code: 200, msg: 'success', data: { count: result[0].count } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 标记通知为已读（传 id 标记单条，不传标记全部）
+router.post(`/notifications/read`, requireAuth, async (req, res, next) => {
+  const userId = req.session?.user?.id;
+  const { id } = req.body;
+  try {
+    if (id) {
+      await dbquery(`UPDATE notification SET is_read = 1 WHERE id = ? AND user_id = ?`, [id, userId]);
+    } else {
+      await dbquery(`UPDATE notification SET is_read = 1 WHERE user_id = ? AND is_read = 0`, [userId]);
+    }
     res.json({ code: 200, msg: 'success' });
   } catch (err) {
     next(err);

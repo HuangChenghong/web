@@ -353,25 +353,28 @@
   transform: scale(1.06);
 }
 
-/* 操作按钮 */
+/* 操作按钮 - 宽度从0展开，缩略图左移 */
 .my-drafts__item-actions {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   gap: 6px;
-  padding: 0 14px;
-  border-left: 1px solid var(--theme-border);
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
   background: var(--theme-background);
   opacity: 0;
-  transform: translateX(8px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.25s ease,
+              min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .my-drafts__item:hover .my-drafts__item-actions,
 .my-drafts__item:focus-within .my-drafts__item-actions {
+  width: 52px;
+  min-width: 52px;
   opacity: 1;
-  transform: translateX(0);
 }
 
 .my-drafts__action {
@@ -445,9 +448,9 @@
   }
 
   .my-drafts__item-actions {
+    width: 44px;
+    min-width: 44px;
     opacity: 1;
-    transform: none;
-    padding: 0 8px;
   }
 }
 
