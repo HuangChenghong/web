@@ -74,18 +74,19 @@ router.get('/', async (req, res, next) => {
       ${title ? 'and articles.title LIKE ?' : ''}
       ${category_id ? 'and articles.category_id = ?' : ''}
       and articles.status = ?
-      order by createdAt desc, views desc
+      order by articles.createdAt desc, articles.views desc
       limit ? offset ?
   `;
-  const params = [status, pageSizeNum, pageSizeNum * (pageNum - 1)];
-  let totalSql = `select count(*) as total from articles where 1=1 and articles.status = ?`;
+  const params = [];
   // status:1 已发布，2草稿
   try {
-    if (title) params.unshift(searchVal);
-    if (category_id) params.unshift(category_id);
-    if (user_id) params.unshift(user_id); // 根据用户id查询文章，我的文章
+    if (user_id) params.push(user_id); // 根据用户id查询文章，我的文章
+    if (title) params.push(searchVal);
+    if (category_id) params.push(category_id);
+    params.push(status, pageSizeNum, pageSizeNum * (pageNum - 1));
     const results = await dbquery(sql, params);
 
+    let totalSql = `select count(*) as total from articles where 1=1 and articles.status = ?`;
     // 查询总数的的参数
     const totalParams = [status];
     if (title) {
