@@ -20,7 +20,8 @@ services:
       # ⚠️ Vite 是 dist/，CRA 是 build/，Next.js 是 out/，按你的框架改
       - ./frontend/build:/usr/share/nginx/html:ro
     depends_on:
-      - backend                        # 等后端起来再启动
+      backend:
+        condition: service_healthy     # 等后端健康检查通过再启动
     restart: unless-stopped
     networks:
       - app-net
