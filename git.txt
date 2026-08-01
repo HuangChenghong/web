@@ -1,0 +1,9 @@
+只是凭证锁出现了权限问题（sandbox 限制），但核心的推送操作已经完成。
+
+你可以去 Gitee 仓库页面（ https://gitee.com/regester/web ）刷新看看，代码已经同步上去了。
+
+总结一下之前的问题 ：
+
+- 远程地址之前设错了（ hardwork/web 应该是 regester/web ）
+- 现在地址已经正确设置为 https://gitee.com/regester/web.git
+- 分支 master 已经关联到远程分支

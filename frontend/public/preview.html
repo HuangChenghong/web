@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>博客列表页优化方案对比</title>
+  <style>
+    :root {
+      --theme-primary: #3b82f6;
+      --theme-primary-deep: #2563eb;
+      --theme-secondary: #06b6d4;
+      --theme-surface: #ffffff;
+      --theme-background: #f8fafc;
+      --theme-border: #e0f2fe;
+      --theme-text-strong: #0f172a;
+      --theme-text-muted: #64748b;
+      --theme-text-faint: #94a3b8;
+      --theme-card-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      --theme-card-shadow-hover: 0 8px 24px rgba(0,0,0,0.08);
+      --theme-hero-bg: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 50%, #cffafe 100%);
+      --theme-hero-pattern: radial-gradient(circle at 20% 50%, rgba(59,130,246,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(6,182,212,0.08) 0%, transparent 50%);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: #f1f5f9;
+      color: var(--theme-text-strong);
+      padding: 40px 20px;
+    }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .page-header h1 {
+      font-size: 28px;
+      color: var(--theme-text-strong);
+      margin-bottom: 8px;
+    }
+    .page-header p {
+      color: var(--theme-text-muted);
+      font-size: 14px;
+    }
+
+    /* 方案容器 */
+    .schemes-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 60px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .scheme {
+      background: #fff;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .scheme-header {
+      padding: 20px 32px;
+      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .scheme-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-deep));
+      color: #fff;
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .scheme-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--theme-text-strong);
+    }
+    .scheme-desc {
+      font-size: 13px;
+      color: var(--theme-text-muted);
+      margin-top: 2px;
+    }
+    .scheme-body {
+      padding: 0;
+      background: var(--theme-background);
+    }
+
+    /* ============ 公共 Hero 样式 ============ */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      background: var(--theme-hero-bg);
+      box-shadow: var(--theme-card-shadow);
+      isolation: isolate;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--theme-hero-pattern);
+      z-index: -1;
+      pointer-events: none;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      right: -80px;
+      top: -80px;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
+      opacity: 0.08;
+      filter: blur(40px);
+      z-index: -1;
+    }
+    .hero-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .hero-text { flex: 1; min-width: 0; }
+    .hero-greeting {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(10px);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--theme-primary-deep);
+      margin-bottom: 12px;
+    }
+    .hero-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 0 0 8px;
+      color: var(--theme-text-strong);
+      line-height: 1.2;
+    }
+    .hero-subtitle {
+      font-size: 14px;
+      color: var(--theme-text-muted);
+      margin: 0;
+      line-height: 1.6;
+    }
+    .hero-stats {
+      display: flex;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .hero-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 22px;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.8);
+      min-width: 96px;
+    }
+    .hero-stat-num {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--theme-primary-deep);
+      line-height: 1;
+    }
+    .hero-stat-label {
+      font-size: 12px;
+      color: var(--theme-text-muted);
+      margin-top: 6px;
+    }
+
+    /* 工具栏 */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 18px 22px;
+      background: var(--theme-surface);
+      border-radius: 18px;
+      border: 1px solid var(--theme-border);
+      box-shadow: var(--theme-card-shadow);
+      flex-wrap: wrap;
+    }
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .category-list {
+      display: flex;
+      gap: 6px;
+      overflow: hidden;
+    }
+    .category-item {
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--theme-text-muted);
+      background: transparent;
+      border: 1px solid var(--theme-border);
+      cursor: pointer;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .category-item.active {
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-deep));
+      color: #fff;
+      border-color: transparent;
+      font-weight: 600;
+    }
+    .search-box {
+      width: 200px;
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid var(--theme-border);
+      padding: 0 14px;
+      font-size: 13px;
+      background: var(--theme-background);
+    }
+    .publish-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 38px;
+      padding: 0 18px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary-deep));
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+    }
+
+    /* ============ 卡片公共样式 ============ */
+    .card {
+      position: relative;
+      background: var(--theme-surface);
+      border-radius: 18px;
+      border: 1px solid var(--theme-border);
+      cursor: pointer;
+      overflow: hidden;
+      box-shadow: var(--theme-card-shadow);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      background: linear-gradient(180deg, var(--card-accent, var(--theme-primary)), var(--theme-secondary));
+      opacity: 0.85;
+    }
+    .card:hover {
+      box-shadow: var(--theme-card-shadow-hover);
+      transform: translateY(-3px);
+    }
+    .card-main {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card-category-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--card-accent-bg, rgba(59, 130, 246, 0.10));
+      color: var(--card-accent, var(--theme-primary));
+      align-self: flex-start;
+    }
+    .card-title {
+      font-weight: 700;
+      color: var(--theme-text-strong);
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-excerpt {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--theme-text-muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 13px;
+      color: var(--theme-text-faint);
+    }
+    .card-author {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      color: var(--theme-text-muted);
+    }
+    .card-avatar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .card-divider {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--theme-text-faint);
+    }
+    .card-meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* 分类颜色 */
+    .cat-技术 { --card-accent: #3b82f6; --card-accent-bg: rgba(59,130,246,0.10); }
+    .cat-生活 { --card-accent: #10b981; --card-accent-bg: rgba(16,185,129,0.10); }
+    .cat-随笔 { --card-accent: #a855f7; --card-accent-bg: rgba(168,85,247,0.10); }
+    .cat-教程 { --card-accent: #f59e0b; --card-accent-bg: rgba(245,158,11,0.10); }
+    .cat-分享 { --card-accent: #06b6d4; --card-accent-bg: rgba(6,182,212,0.10); }
+    .cat-其他 { --card-accent: #94a3b8; --card-accent-bg: rgba(148,163,184,0.14); }
+
+    /* ============ 方案 A：双列网格 ============ */
+    .scheme-a {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 24px 60px;
+    }
+    .scheme-a .hero {
+      padding: 28px 32px;
+      margin-bottom: 20px;
+    }
+    .scheme-a .hero-title { font-size: 24px; }
+    .scheme-a .hero-stat { padding: 12px 18px; min-width: 80px; }
+    .scheme-a .hero-stat-num { font-size: 18px; }
+    .scheme-a .toolbar { margin-bottom: 20px; }
+    .scheme-a .card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .scheme-a .card {
+      padding-left: 4px;
+    }
+    .scheme-a .card-main {
+      padding: 20px 22px;
+    }
+    .scheme-a .card-title { font-size: 17px; }
+    .scheme-a .card-excerpt { font-size: 13px; }
+
+    /* ============ 方案 B：加宽紧凑单列 ============ */
+    .scheme-b {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px 24px 60px;
+    }
+    .scheme-b .hero {
+      padding: 24px 32px;
+      margin-bottom: 16px;
+    }
+    .scheme-b .hero-title { font-size: 22px; }
+    .scheme-b .hero-subtitle { font-size: 13px; }
+    .scheme-b .hero-stat { padding: 10px 16px; min-width: 72px; }
+    .scheme-b .hero-stat-num { font-size: 18px; }
+    .scheme-b .toolbar {
+      padding: 14px 18px;
+      margin-bottom: 16px;
+    }
+    .scheme-b .card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .scheme-b .card-main {
+      flex-direction: row;
+      align-items: center;
+      padding: 16px 22px;
+      gap: 20px;
+    }
+    .scheme-b .card-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .scheme-b .card-title { font-size: 17px; }
+    .scheme-b .card-excerpt {
+      font-size: 13px;
+      -webkit-line-clamp: 1;
+    }
+    .scheme-b .card-side {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .scheme-b .card-stats {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--theme-text-faint);
+    }
+
+    /* ============ 方案 C：杂志混合布局 ============ */
+    .scheme-c {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 24px 60px;
+    }
+    .scheme-c .hero {
+      padding: 28px 32px;
+      margin-bottom: 20px;
+    }
+    .scheme-c .hero-title { font-size: 24px; }
+    .scheme-c .toolbar { margin-bottom: 20px; }
+    .scheme-c .featured-card {
+      margin-bottom: 20px;
+      padding-left: 4px;
+    }
+    .scheme-c .featured-card .card-main {
+      flex-direction: row;
+      padding: 28px;
+      gap: 32px;
+    }
+    .scheme-c .featured-card .card-visual {
+      width: 320px;
+      height: 200px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 48px;
+      flex-shrink: 0;
+    }
+    .scheme-c .featured-card .card-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      justify-content: center;
+    }
+    .scheme-c .featured-card .card-title {
+      font-size: 24px;
+      -webkit-line-clamp: 2;
+    }
+    .scheme-c .featured-card .card-excerpt {
+      font-size: 15px;
+      -webkit-line-clamp: 3;
+      line-height: 1.8;
+    }
+    .scheme-c .card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .scheme-c .card {
+      padding-left: 4px;
+    }
+    .scheme-c .card-main {
+      padding: 18px 20px;
+    }
+    .scheme-c .card-title { font-size: 16px; }
+    .scheme-c .card-excerpt { font-size: 13px; }
+
+    /* 方案标签 */
+    .scheme-tag {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
+      z-index: 10;
+    }
+    .scheme-tag.recommended {
+      background: linear-gradient(135deg, #10b981, #059669);
+    }
+
+    /* 分隔线 */
+    .scheme-divider {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    .scheme-divider-line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
+    }
+    .scheme-divider-text {
+      font-size: 14px;
+      color: var(--theme-text-faint);
+      font-weight: 600;
+    }
+
+    @media (max-width: 900px) {
+      .scheme-a .card-grid,
+      .scheme-c .card-grid { grid-template-columns: 1fr; }
+      .scheme-b .card-main { flex-direction: column; align-items: flex-start; }
+      .scheme-c .featured-card .card-main { flex-direction: column; }
+      .scheme-c .featured-card .card-visual { width: 100%; height: 160px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>🎨 博客列表页优化方案对比</h1>
+  <p>请查看以下三个方案的真实渲染效果，选择你喜欢的风格</p>
+</div>
+
+<div class="schemes-wrapper">
+
+  <!-- 方案 A -->
+  <div class="scheme">
+    <div class="scheme-header">
+      <span class="scheme-badge">A</span>
+      <div>
+        <div class="scheme-title">方案 A：双列网格 + 紧凑 Hero <span style="color:#059669;font-size:14px;">（推荐）</span></div>
+        <div class="scheme-desc">容器 1280px · 文章双列展示 · Hero 区压缩 · 首屏可见 4 篇文章</div>
+      </div>
+    </div>
+    <div class="scheme-body">
+      <div class="scheme-a">
+        <div class="hero">
+          <div class="hero-inner">
+            <div class="hero-text">
+              <span class="hero-greeting">⚡ 灵感 · 记录 · 分享</span>
+              <h1 class="hero-title">今天，又有什么值得分享？</h1>
+              <p class="hero-subtitle">这里汇集了所有发布过的文章。挑一个分类，或者直接搜索感兴趣的标题吧～</p>
+            </div>
+            <div class="hero-stats">
+              <div class="hero-stat"><span class="hero-stat-num">29</span><span class="hero-stat-label">总文章</span></div>
+              <div class="hero-stat"><span class="hero-stat-num">48</span><span class="hero-stat-label">累计用户</span></div>
+              <div class="hero-stat"><span class="hero-stat-num">0</span><span class="hero-stat-label">总浏览</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-right">
+            <div class="category-list">
+              <button class="category-item active">全部</button>
+              <button class="category-item">技术</button>
+              <button class="category-item">教程</button>
+              <button class="category-item">生活</button>
+              <button class="category-item">随笔</button>
+              <button class="category-item">分享</button>
+              <button class="category-item">其他</button>
+            </div>
+            <input class="search-box" placeholder="🔍 搜索文章标题">
+            <button class="publish-btn">✏️ 登录后发布</button>
+          </div>
+        </div>
+
+        <div class="card-grid">
+          <div class="card cat-分享">
+            <div class="card-main">
+              <span class="card-category-tag">📁 分享</span>
+              <h2 class="card-title">445454</h2>
+              <p class="card-excerpt">789789</p>
+              <div class="card-meta">
+                <span class="card-author"><span class="card-avatar">Z</span>zhangsan</span>
+                <span class="card-divider"></span>
+                <span class="card-meta-item">🕐 2026/07/31 03:43</span>
+                <span class="card-meta-item">👁 0</span>
+                <span class="card-meta-item">♥ 32</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card cat-技术">
+            <div class="card-main">
+              <span class="card-category-tag">📁 技术</span>
+              <h2 class="card-title">胜多负少</h2>
+              <p class="card-excerpt">这是一篇关于技术的文章摘要内容，展示卡片的紧凑布局效果。</p>
+              <div class="card-meta">
+                <span class="card-author"><span class="card-avatar">A</span>admin</span>
+                <span class="card-divider"></span>
+                <span class="card-meta-item">🕐 2026/07/30 01:01</span>
+                <span class="card-meta-item">👁 0</span>
+                <span class="card-meta-item">♥ 3</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card cat-技术">
+            <div class="card-main">
+              <span class="card-category-tag">📁 技术</span>
+              <h2 class="card-title">图片</h2>
+              <p class="card-excerpt">文章摘要内容展示区域，双列布局让空间利用更充分。</p>
+              <div class="card-meta">
+                <span class="card-author"><span class="card-avatar">A</span>admin</span>
+                <span class="card-divider"></span>
+                <span class="card-meta-item">🕐 2026/07/30 00:56</span>
+                <span class="card-meta-item">👁 0</span>
+                <span class="card-meta-item">♥ 3</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card cat-其他">
+            <div class="card-main">
+              <span class="card-category-tag">📁 其他</span>
+              <h2 class="card-title">促进团结奋斗 汇聚磅礴力量</h2>
+              <p class="card-excerpt">促进团结奋斗 汇聚磅礴力量 实现中华民族伟大复兴，需要海内外中华儿女共同努力，做好侨务工作至关重要……</p>
+              <div class="card-meta">
+                <span class="card-author"><span class="card-avatar">A</span>admin</span>
+                <span class="card-divider"></span>
+                <span class="card-meta-item">🕐 2026/07/30 00:28</span>
+                <span class="card-meta-item">👁 0</span>
+                <span class="card-meta-item">♥ 2</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 方案 B -->
+  <div class="scheme">
+    <div class="scheme-header">
+      <span class="scheme-badge">B</span>
+      <div>
+        <div class="scheme-title">方案 B：加宽容器 + 紧凑单列</div>
+        <div class="scheme-desc">容器 1400px · 保持单列阅读 · 卡片横向布局 · 同屏可见更多文章</div>
+      </div>
+    </div>
+    <div class="scheme-body">
+      <div class="scheme-b">
+        <div class="hero">
+          <div class="hero-inner">
+            <div class="hero-text">
+              <span class="hero-greeting">⚡ 灵感 · 记录 · 分享</span>
+              <h1 class="hero-title">今天，又有什么值得分享？</h1>
+              <p class="hero-subtitle">这里汇集了所有发布过的文章。挑一个分类，或者直接搜索感兴趣的标题吧～</p>
+            </div>
+            <div class="hero-stats">
+              <div class="hero-stat"><span class="hero-stat-num">29</span><span class="hero-stat-label">总文章</span></div>
+              <div class="hero-stat"><span class="hero-stat-num">48</span><span class="hero-stat-label">累计用户</span></div>
+              <div class="hero-stat"><span class="hero-stat-num">0</span><span class="hero-stat-label">总浏览</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-right">
+            <div class="category-list">
+              <button class="category-item active">全部</button>
+              <button class="category-item">技术</button>
+              <button class="category-item">教程</button>
+              <button class="category-item">生活</button>
+              <button class="category-item">随笔</button>
+              <button class="category-item">分享</button>
+              <button class="category-item">其他</button>
+            </div>
+            <input class="search-box" placeholder="🔍 搜索文章标题">
+            <button class="publish-btn">✏️ 登录后发布</button>
+          </div>
+        </div>
+
+        <div class="card-list">
+          <div class="card cat-分享">
+            <div class="card-main">
+              <div class="card-info">
+                <span class="card-category-tag">📁 分享</span>
+                <h2 class="card-title">445454</h2>
+                <p class="card-excerpt">789789</p>
+              </div>
+              <div class="card-side">
+                <div class="card-author"><span class="card-avatar">Z</span>zhangsan</div>
+                <div class="card-meta-item">🕐 2026/07/31 03:43</div>
+                <div class="card-stats">
+                  <span>👁 0</span>
+                  <span>♥ 32</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card cat-技术">
+            <div class="card-main">
+              <div class="card-info">
+                <span class="card-category-tag">📁 技术</span>
+                <h2 class="card-title">胜多负少</h2>
+                <p class="card-excerpt">这是一篇关于技术的文章摘要内容，展示卡片的紧凑布局效果。</p>
+              </div>
+              <div class="card-side">
+                <div class="card-author"><span class="card-avatar">A</span>admin</div>
+                <div class="card-meta-item">🕐 2026/07/30 01:01</div>
+                <div class="card-stats">
+                  <span>👁 0</span>
+                  <span>♥ 3</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card cat-技术">
+            <div class="card-main">
+              <div class="card-info">
+                <span class="card-category-tag">📁 技术</span>
+                <h2 class="card-title">图片</h2>
+                <p class="card-excerpt">文章摘要内容展示区域，单列紧凑布局。</p>
+              </div>
+              <div class="card-side">
+                <div class="card-author"><span class="card-avatar">A</span>admin</div>
+                <div class="card-meta-item">🕐 2026/07/30 00:56</div>
+                <div class="card-stats">
+                  <span>👁 0</span>
+                  <span>♥ 3</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card cat-其他">
+            <div class="card-main">
+              <div class="card-info">
+                <span class="card-category-tag">📁 其他</span>
+                <h2 class="card-title">促进团结奋斗 汇聚磅礴力量</h2>
+                <p class="card-excerpt">促进团结奋斗 汇聚磅礴力量 实现中华民族伟大复兴，需要海内外中华儿女共同努力，做好侨务工作至关重要……</p>
+              </div>
+              <div class="card-side">
+                <div class="card-author"><span class="card-avatar">A</span>admin</div>
+                <div class="card-meta-item">🕐 2026/07/30 00:28</div>
+                <div class="card-stats">
+                  <span>👁 0</span>
+                  <span>♥ 2</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card cat-随笔">
+            <div class="card-main">
+              <div class="card-info">
+                <span class="card-category-tag">📁 随笔</span>
+                <h2 class="card-title">撒旦法撒旦法001233</h2>
+                <p class="card-excerpt">撒旦 法萨芬001 002</p>
+              </div>
+              <div class="card-side">
+                <div class="card-author"><span class="card-avatar">A</span>admin</div>
+                <div class="card-meta-item">🕐 2026/07/29 23:55</div>
+                <div class="card-stats">
+                  <span>👁 0</span>
+                  <span>♥ 2</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 方案 C -->
+  <div class="scheme">
+    <div class="scheme-header">
+      <span class="scheme-badge">C</span>
+      <div>
+        <div class="scheme-title">方案 C：杂志混合布局</div>
+        <div class="scheme-desc">首篇特色卡片跨全宽 · 其余文章三列网格 · 视觉层次丰富</div>
+      </div>
+    </div>
+    <div class="scheme-body">
+      <div class="scheme-c">
+        <div class="hero">
+          <div class="hero-inner">
+            <div class="hero-text">
+              <span class="hero-greeting">⚡ 灵感 · 记录 · 分享</span>
+              <h1 class="hero-title">今天，又有什么值得分享？</h1>
+              <p class="hero-subtitle">这里汇集了所有发布过的文章。挑一个分类，或者直接搜索感兴趣的标题吧～</p>
+            </div>
+            <div class="hero-stats">
+              <div class="hero-stat"><span class="hero-stat-num">29</span><span class="hero-stat-label">总文章</span></div>
+              <div class="hero-stat"><span class="hero-stat-num">48</span><span class="hero-stat-label">累计用户</span></div>
+              <div class="hero-stat"><span class="hero-stat-num">0</span><span class="hero-stat-label">总浏览</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-right">
+            <div class="category-list">
+              <button class="category-item active">全部</button>
+              <button class="category-item">技术</button>
+              <button class="category-item">教程</button>
+              <button class="category-item">生活</button>
+              <button class="category-item">随笔</button>
+              <button class="category-item">分享</button>
+              <button class="category-item">其他</button>
+            </div>
+            <input class="search-box" placeholder="🔍 搜索文章标题">
+            <button class="publish-btn">✏️ 登录后发布</button>
+          </div>
+        </div>
+
+        <!-- 特色文章 -->
+        <div class="card featured-card cat-分享">
+          <div class="card-main">
+            <div class="card-visual">📖</div>
+            <div class="card-content">
+              <span class="card-category-tag">📁 分享</span>
+              <h2 class="card-title">445454</h2>
+              <p class="card-excerpt">789789 这是一篇特色文章，占据整个宽度，配有视觉区域，展示最重要或最新的内容，提升页面视觉冲击力。</p>
+              <div class="card-meta">
+                <span class="card-author"><span class="card-avatar">Z</span>zhangsan</span>
+                <span class="card-divider"></span>
+                <span class="card-meta-item">🕐 2026/07/31 03:43</span>
+                <span class="card-meta-item">👁 0</span>
+                <span class="card-meta-item">♥ 32</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 网格区 -->
+        <div class="card-grid">
+          <div class="card cat-技术">
+            <div class="card-main">
+              <span class="card-category-tag">📁 技术</span>
+              <h2 class="card-title">胜多负少</h2>
+              <p class="card-excerpt">这是一篇关于技术的文章摘要内容。</p>
+              <div class="card-meta">
+                <span class="card-author"><span class="card-avatar">A</span>admin</span>
+                <span class="card-meta-item">🕐 01:01</span>
+                <span class="card-meta-item">♥ 3</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card cat-技术">
+            <div class="card-main">
+              <span class="card-category-tag">📁 技术</span>
+              <h2 class="card-title">图片</h2>
+              <p class="card-excerpt">文章摘要内容展示。</p>
+              <div class="card-meta">
+                <span class="card-author"><span class="card-avatar">A</span>admin</span>
+                <span class="card-meta-item">🕐 00:56</span>
+                <span class="card-meta-item">♥ 3</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card cat-其他">
+            <div class="card-main">
+              <span class="card-category-tag">📁 其他</span>
+              <h2 class="card-title">促进团结奋斗</h2>
+              <p class="card-excerpt">汇聚磅礴力量，实现中华民族伟大复兴。</p>
+              <div class="card-meta">
+                <span class="card-author"><span class="card-avatar">A</span>admin</span>
+                <span class="card-meta-item">🕐 00:28</span>
+                <span class="card-meta-item">♥ 2</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card cat-随笔">
+            <div class="card-main">
+              <span class="card-category-tag">📁 随笔</span>
+              <h2 class="card-title">撒旦法撒旦法</h2>
+              <p class="card-excerpt">撒旦 法萨芬001 002</p>
+              <div class="card-meta">
+                <span class="card-author"><span class="card-avatar">A</span>admin</span>
+                <span class="card-meta-item">🕐 23:55</span>
+                <span class="card-meta-item">♥ 2</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card cat-教程">
+            <div class="card-main">
+              <span class="card-category-tag">📁 教程</span>
+              <h2 class="card-title">代码块</h2>
+              <p class="card-excerpt">print('hello world') console.log('hello world')</p>
+              <div class="card-meta">
+                <span class="card-author"><span class="card-avatar">A</span>admin</span>
+                <span class="card-meta-item">🕐 00:32</span>
+                <span class="card-meta-item">♥ 2</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card cat-生活">
+            <div class="card-main">
+              <span class="card-category-tag">📁 生活</span>
+              <h2 class="card-title">表格</h2>
+              <p class="card-excerpt">姓名</p>
+              <div class="card-meta">
+                <span class="card-author"><span class="card-avatar">A</span>admin</span>
+                <span class="card-meta-item">🕐 00:30</span>
+                <span class="card-meta-item">♥ 2</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // 分类切换效果
+  document.querySelectorAll('.category-list').forEach(list => {
+    list.querySelectorAll('.category-item').forEach(item => {
+      item.addEventListener('click', () => {
+        list.querySelectorAll('.category-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+      });
+    });
+  });
+</script>
+
+</body>
+</html>

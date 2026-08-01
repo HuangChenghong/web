@@ -1,0 +1,55 @@
+version: "1.0"
+name: 部署前端
+displayName: 部署前端到生产
+
+stages:
+- name: build
+  displayName: 构建前端
+  trigger: auto
+  steps:
+  - step: build@nodejs
+    name: build-frontend
+    displayName: Nodejs 构建
+    nodeVersion: 20
+    commands:
+    - cd frontend
+    - '# 设置NPM源，提升安装速度'
+    - npm config set registry https://registry.npmmirror.com
+    - '# 装依赖 + build'
+    - npm install
+    - npm run build
+    artifacts:
+    - name: FRONTEND_BUILD
+      path:
+      - ./frontend/build
+      type: .tar.gz
+    caches:
+    - "~/.npm"
+    notify: []
+
+- name: deploy
+  displayName: 部署到服务器
+  trigger: auto
+  steps:
+  - step: deploy@agent
+    name: deploy-to-server
+    displayName: 主机部署
+    dependArtifact: FRONTEND_BUILD
+    deployArtifact:
+    - name: FRONTEND_BUILD
+      target: "/opt/myapp/frontend/build/"
+      source: artifact
+      artifactRepository: default
+      artifactName: FRONTEND_BUILD
+      artifactVersion: latest
+    script: |
+      # 清空旧 build 产物（不然会有遗留文件）
+      rm -rf /opt/myapp/frontend/build/*
+      # Gitee Go 会自动把 artifact 解压到 target
+      # reload nginx 让它重读静态文件
+      docker exec myapp-nginx nginx -s reload
+      echo "✅ 部署完成：$(date)"
+    notify: []
+
+triggers:
+  trigger: manual

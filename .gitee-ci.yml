@@ -1,0 +1,58 @@
+# =============================================================================
+# Gitee Go 流水线配置（Pipeline as Code）
+# 触发：master 分支打 tag 时部署（push 不部署）
+# 流程：build@nodejs 步骤在云端跑 build + scp 上传 → ssh@command 重载 nginx
+# =============================================================================
+
+name: deploy-myapp
+displayName: '前端部署到生产' # 必填项，否则 Gitee Go 列表显示成 "unknown"
+description: '前端代码构建并部署到阿里云 ECS'
+
+# 触发规则：仅手动触发（在 Gitee Go 后台点"运行"按钮才部署）
+#          不监听 push / tag / PR / 定时，避免误操作自动部署
+trigger:
+  push:
+    branches-ignore:
+      - '**' # 忽略所有分支 push（相当于彻底关闭 push 触发）
+
+stages:
+  - stage:
+      name: deploy-prod
+      displayName: 部署到生产
+      steps:
+        # ---------- 1. 在 Gitee Go 云端构建前端 ----------
+        - step: build@nodejs
+          name: build-and-upload
+          displayName: 构建并上传到服务器
+          nodeVersion: 20
+          commands:
+            # 装依赖、跑 build
+            - cd frontend
+            - npm config set registry https://registry.npmmirror.com
+            - npm install
+            - npm run build
+
+            # 把 SSH 私钥从环境变量写到文件（Gitee Go 容器内有 ssh 客户端）
+            - echo "$MY_SERVER_SSH_KEY" > /tmp/server_key
+            - chmod 600 /tmp/server_key
+
+            # 先 SSH 到服务器清空旧的 build 产物（避免遗留文件）
+            - ssh -i /tmp/server_key -o StrictHostKeyChecking=no admin@106.14.254.44 "rm -rf /opt/myapp/frontend/build/*"
+
+            # scp 上传新的 build 产物
+            - scp -i /tmp/server_key -o StrictHostKeyChecking=no -r build/* admin@106.14.254.44:/opt/myapp/frontend/build/
+
+            # 清理私钥文件（安全）
+            - rm -f /tmp/server_key
+
+        # ---------- 2. 服务器上重载 nginx ----------
+        - step: ssh@command
+          name: reload-nginx
+          displayName: 重载 nginx
+          dependsOn: build-and-upload
+          with:
+            host: 106.14.254.44
+            user: admin
+            keySecret: MY_SERVER_SSH_KEY
+            # nginx -s reload 是热重载，不中断连接（比 restart 平滑）
+            command: docker exec myapp-nginx nginx -s reload
