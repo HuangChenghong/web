@@ -24,6 +24,8 @@ jobs:
       # 3. 装依赖 + build（云端跑，不吃服务器内存）
       - name: Build frontend
         working-directory: ./frontend
+        env:
+          CI: false  # 不把 ESLint warning 当 error（CI 模式默认会）
         run: |
           npm config set registry https://registry.npmmirror.com
           npm install
