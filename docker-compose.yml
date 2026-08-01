@@ -12,13 +12,18 @@ services:
     container_name: myapp-nginx
     ports:
       - "80:80"                        # 对外暴露 80（HTTP）
-      # - "443:443"                    # 配 HTTPS 时再开
+       # - "443:443"                    # 配 HTTPS 时再开
+      - "443:443"                      # 对外暴露 443（HTTPS）
     volumes:
       # Nginx 配置
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       # 前端打包好的静态文件
       # ⚠️ Vite 是 dist/，CRA 是 build/，Next.js 是 out/，按你的框架改
       - ./frontend/build:/usr/share/nginx/html:ro
+      # 【2026-08-01 改】Certbot 验证用：Certbot 在这里放验证文件，nginx 服务 /.well-known/acme-challenge/
+      - /var/www/certbot:/var/www/certbot:ro
+      # 【2026-08-01 改】SSL 证书目录：Certbot 生成的证书
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       backend:
         condition: service_healthy     # 等后端健康检查通过再启动
