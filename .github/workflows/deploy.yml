@@ -31,30 +31,38 @@ jobs:
           npm install
           npm run build
 
-      # 4. 清空服务器上的旧 build 产物
+      # 4. 解码 base64 私钥到临时文件
+      - name: Decode SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "✅ SSH key decoded"
+
+      # 5. 清空服务器上的旧 build 产物
       - name: Clear old build on server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
+          key_path: ~/.ssh/deploy_key
           script: rm -rf /opt/myapp/frontend/build/*
 
-      # 5. scp 把 build 产物传到服务器
+      # 6. scp 把 build 产物传到服务器
       - name: Copy build to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
+          key_path: ~/.ssh/deploy_key
           source: "frontend/build"
           target: "/opt/myapp/frontend/build/"
 
-      # 6. reload nginx
+      # 7. reload nginx
       - name: Reload nginx
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
+          key_path: ~/.ssh/deploy_key
           script: docker exec myapp-nginx nginx -s reload
