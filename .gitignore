@@ -1,6 +1,31 @@
+# 依赖
 node_modules/
+**/node_modules/
+
+# 构建产物
+build/
 dist/
+
+# 环境变量（**不要把密码提交到 git**）
 .env
+.env.production
 .env.local
-.DS_Store
+.env.*.local
+!.env.example
+
+# 上传文件（容器里存了，这里也忽略）
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# 日志
 *.log
+npm-debug.log*
+
+# 系统
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Docker（可选，如果不想把 Docker 文件传 git）
+# docker-compose.yml

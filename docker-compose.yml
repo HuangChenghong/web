@@ -39,25 +39,18 @@ services:
       dockerfile: Dockerfile
     container_name: myapp-backend
     expose:
-      - "3000"                         # 只暴露给同网络的其他容器，不开公网
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      # 数据库（注意：主机名是服务名 mysql，不是 localhost）
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      # Redis
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      # 你自己的其他配置
-      - JWT_SECRET=${JWT_SECRET}
+      - "8000"                         # 只暴露给同网络的其他容器，不开公网
+          # 【2026-08-01 改】环境变量改用 env_file 加载，不再在 compose 里重复写
+    # 原因：原来 compose 里 hardcode 的 DB_USER=admin、DB_PASSWORD=123456 跟
+    #       backend/.env.production 里的 myapp_user 不一致，会导致连不上数据库
+    env_file:
+      - ./backend/.env.production
     depends_on:
       - mysql                          # 等数据库起来
       - redis                          # 等 redis 起来
+    volumes:
+      # 上传的图片要持久化，否则容器重启就丢了
+      - ./backend/uploads:/app/uploads
     restart: unless-stopped
     networks:
       - app-net
@@ -65,9 +58,9 @@ services:
       resources:
         limits:
           memory: 512M                 # 后端是内存大户，限一下
-    # 健康检查（可选但推荐）
+    # 健康检查：用已存在的 /api/blogs/count 接口（无需鉴权）
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8000/api/blogs/count"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -82,13 +75,16 @@ services:
     container_name: myapp-mysql
     # 注意：这里故意不写 ports！不暴露到公网
     environment:
-      - MARIADB_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MARIADB_DATABASE=${DB_NAME}
-      - MARIADB_USER=${DB_USER}
-      - MARIADB_PASSWORD=${DB_PASSWORD}
+      - MARIADB_ROOT_PASSWORD=852456Aa
+      - MARIADB_DATABASE=blog
+      - MARIADB_USER=myapp_user
+      - MARIADB_PASSWORD=852456Aa
       - TZ=Asia/Shanghai
     volumes:
       - mysql_data:/var/lib/mysql      # 数据持久化（关键！不写这行数据会丢）
+      # 【2026-08-01 改】挂载 init SQL，MariaDB 首次启动（数据卷为空时）自动执行
+      # 文件名 01- 前缀保证执行顺序，:ro 只读挂载
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -109,9 +105,13 @@ services:
     image: redis:7-alpine              # alpine 版本只有十几 MB
     container_name: myapp-redis
     # 也不暴露公网
+     # 【2026-08-01 改】去掉密码要求（--requirepass）
+    # 原因：原版用 ${REDIS_PASSWORD} 引用，但 web/.env 里没定义这个变量，会变成空字符串
+    #       Redis 只在 docker 内网访问，不暴露公网，学习项目可以不要密码
+    #       真要加密码，可以直接改成 --requirepass your_password_here
     command:
       - redis-server
-      - --requirepass ${REDIS_PASSWORD}
+      # - --requirepass ${REDIS_PASSWORD}
       - --maxmemory 128mb              # 限制最大内存
       - --maxmemory-policy allkeys-lru # 满了之后淘汰策略
     volumes:
