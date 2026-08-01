@@ -242,7 +242,7 @@ const BlogList = () => {
               灵感 · 记录 · 分享
             </span>
             <h1 className='blog-hero__title'>{pickTitle(total)}</h1>
-            <p className='blog-hero__subtitle'>这里汇集了所有发布过的文章。挑一个分类，或者直接搜索感兴趣的标题吧～</p>
+            <p className='blog-hero__subtitle'>这里汇集了所有发布过的文章，挑一个分类，或者直接搜索感兴趣的标题吧～</p>
           </div>
           <div className='blog-hero__stats'>
             <div className='blog-hero__stat'>
