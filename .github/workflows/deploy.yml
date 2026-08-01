@@ -40,6 +40,9 @@ jobs:
           mkdir -p ~/.ssh
           echo "StrictHostKeyChecking=no" >> ~/.ssh/config
           echo "✅ SSH key decoded"
+          echo ""
+          echo "=== 这个 key 的公钥指纹 ==="
+          ssh-keygen -l -f /tmp/deploy_key
 
       # 5. 清空服务器上的旧 build 产物（直接 ssh，不用 action）
       - name: Clear old build on server
