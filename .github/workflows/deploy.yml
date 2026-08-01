@@ -1,0 +1,58 @@
+name: Deploy Frontend
+
+# 触发：手动（点按钮才部署）
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 拉代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 装 Node.js 20（带 npm 缓存）
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # 3. 装依赖 + build（云端跑，不吃服务器内存）
+      - name: Build frontend
+        working-directory: ./frontend
+        run: |
+          npm config set registry https://registry.npmmirror.com
+          npm install
+          npm run build
+
+      # 4. 清空服务器上的旧 build 产物
+      - name: Clear old build on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: rm -rf /opt/myapp/frontend/build/*
+
+      # 5. scp 把 build 产物传到服务器
+      - name: Copy build to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "frontend/build"
+          target: "/opt/myapp/frontend/build/"
+
+      # 6. reload nginx
+      - name: Reload nginx
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: docker exec myapp-nginx nginx -s reload
