@@ -13,7 +13,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 装 Node.js 20（带 npm 缓存）
+      # 2. 装 Node.js 20
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -25,45 +25,33 @@ jobs:
       - name: Build frontend
         working-directory: ./frontend
         env:
-          CI: false  # 不把 ESLint warning 当 error（CI 模式默认会）
+          CI: false  # 不把 ESLint warning 当 error
         run: |
           npm config set registry https://registry.npmmirror.com
           npm install
           npm run build
 
-      # 4. 解码 base64 私钥到临时文件（绝对路径，所有 step 都能访问）
+      # 4. 解码 base64 私钥到 /tmp/deploy_key
+      #    不用 appleboy 的 action（用 docker 容器，看不到 /tmp）
       - name: Decode SSH key
         run: |
           echo "${{ secrets.SERVER_SSH_KEY }}" | base64 -d > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
+          mkdir -p ~/.ssh
+          echo "StrictHostKeyChecking=no" >> ~/.ssh/config
           echo "✅ SSH key decoded"
-          ls -la /tmp/deploy_key
-          head -1 /tmp/deploy_key  # 看看第一行（应该是 -----BEGIN...）
 
-      # 5. 清空服务器上的旧 build 产物
+      # 5. 清空服务器上的旧 build 产物（直接 ssh，不用 action）
       - name: Clear old build on server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key_path: /tmp/deploy_key
-          script: rm -rf /opt/myapp/frontend/build/*
+        run: |
+          ssh -i /tmp/deploy_key admin@${{ secrets.SERVER_HOST }} "rm -rf /opt/myapp/frontend/build/*"
 
-      # 6. scp 把 build 产物传到服务器
+      # 6. scp 把 build 产物传到服务器（直接 scp，不用 action）
       - name: Copy build to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key_path: /tmp/deploy_key
-          source: "frontend/build"
-          target: "/opt/myapp/frontend/build/"
+        run: |
+          scp -i /tmp/deploy_key -r frontend/build/. admin@${{ secrets.SERVER_HOST }}:/opt/myapp/frontend/build/
 
       # 7. reload nginx
       - name: Reload nginx
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key_path: /tmp/deploy_key
-          script: docker exec myapp-nginx nginx -s reload
+        run: |
+          ssh -i /tmp/deploy_key admin@${{ secrets.SERVER_HOST }} "docker exec myapp-nginx nginx -s reload"
