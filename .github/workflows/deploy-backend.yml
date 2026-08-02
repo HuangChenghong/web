@@ -1,0 +1,63 @@
+name: Deploy Backend
+
+# 触发：手动（点按钮才部署）
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 拉代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 解码 base64 私钥到 /tmp/deploy_key
+      - name: Decode SSH key
+        run: |
+          echo "${{ secrets.SERVER_SSH_KEY }}" | base64 -d > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          mkdir -p ~/.ssh
+          echo "StrictHostKeyChecking=no" >> ~/.ssh/config
+          echo "=== 这个 key 的公钥指纹 ==="
+          ssh-keygen -l -f /tmp/deploy_key
+
+      # 3. 把 backend 代码 scp 到服务器（不传 node_modules / .env.production / uploads）
+      # tar --exclude=node_modules	打包压缩	scp 直接传目录会带 node_modules（大文件，不建议）
+      # --exclude='.git'	排除 git 目录（大文件，不建议）
+      # --exclude='.env.production'		排除环境变量文件 服务器有自己这份，不能覆盖（会改数据库密码）
+      # --exclude='uploads'	用户图片数据，不能覆盖服务器上的数据
+      # tar -xzf - -C /opt/myapp/ --skip-old-files	服务器解包--skip-old-files 意思是"目标文件已存在就跳过"，
+      # 正好保护 .env.production 和 uploads
+
+      - name: Sync backend code to server
+        run: |
+          tar --exclude='node_modules' \
+              --exclude='.git' \
+              --exclude='.env.production' \
+              --exclude='uploads' \
+              -czf - backend/ | \
+          ssh -i /tmp/deploy_key admin@${{ secrets.SERVER_HOST }} \
+            "tar -xzf - -C /opt/myapp/ --skip-old-files"
+
+      # 4. 重新 build 后端镜像
+      - name: Rebuild backend image
+        run: |
+          ssh -i /tmp/deploy_key admin@${{ secrets.SERVER_HOST }} \
+            "cd /opt/myapp && docker compose build backend"
+
+      # 5. 重启后端容器（新镜像生效）
+      # docker compose build backend	服务器自己 build 镜像	不在 GitHub runner 上 build（runner 没 docker daemon），
+      # 把代码传过去让服务器 build
+      # docker compose up -d backend	重启容器	用新镜像替换运行中的容器，零停服（docker 会先起新容器再停旧的）
+      - name: Restart backend container
+        run: |
+          ssh -i /tmp/deploy_key admin@${{ secrets.SERVER_HOST }} \
+            "cd /opt/myapp && docker compose up -d backend && sleep 3 && docker compose ps backend"
+
+      # 6. 看启动日志，确认没炸
+      - name: Check backend logs
+        run: |
+          ssh -i /tmp/deploy_key admin@${{ secrets.SERVER_HOST }} \
+            "docker logs myapp-backend --tail 30"
