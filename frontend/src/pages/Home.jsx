@@ -81,7 +81,7 @@ const Home = () => {
       </div>
       <div className='notif-panel__list'>
         {notifications.length === 0 ? (
-          <div className='notif-panel__empty'>暂无通知</div>
+          <div className='notif-panel__empty'>暂无消息通知~</div>
         ) : (
           notifications.map(n => (
             <div
