@@ -23,7 +23,10 @@ jobs:
           echo "=== 这个 key 的公钥指纹 ==="
           ssh-keygen -l -f /tmp/deploy_key
 
-      # 3. 把 backend 代码 scp 到服务器（不传 node_modules / .env.production / uploads）
+      # 3. 把 backend 代码同步到服务器
+      #    关键：先备份 .env.production 和 uploads 到 /tmp
+      #    再删掉老 backend 目录、解压新代码、最后恢复那两个文件
+      #    （之前用 --skip-old-files 有 bug：study 老代码已存在，新 web 代码会被全部跳过，等于没传）
       # tar --exclude=node_modules	打包压缩	scp 直接传目录会带 node_modules（大文件，不建议）
       # --exclude='.git'	排除 git 目录（大文件，不建议）
       # --exclude='.env.production'		排除环境变量文件 服务器有自己这份，不能覆盖（会改数据库密码）
@@ -38,16 +41,36 @@ jobs:
               --exclude='.env.production' \
               --exclude='uploads' \
               -czf - backend/ | \
-          ssh -i /tmp/deploy_key admin@${{ secrets.SERVER_HOST }} \
-            "tar -xzf - -C /opt/myapp/ --skip-old-files"
+          ssh -i /tmp/deploy_key admin@${{ secrets.SERVER_HOST }} '
+            set -e
+            cd /opt/myapp
+            [ -f backend/.env.production ] && cp backend/.env.production /tmp/env.bak && echo "✅ 已备份 .env.production"
+            [ -d backend/uploads ] && mv backend/uploads /tmp/uploads.bak && echo "✅ 已备份 uploads"
+            rm -rf backend
+            mkdir backend
+            tar -xzf - -C /opt/myapp/
+            [ -f /tmp/env.bak ] && mv /tmp/env.bak backend/.env.production && echo "✅ 已恢复 .env.production"
+            [ -d /tmp/uploads.bak ] && mv /tmp/uploads.bak backend/uploads && echo "✅ 已恢复 uploads"
+            echo ""
+            echo "=== 同步后 backend 目录（看时间） ==="
+            ls -la /opt/myapp/backend/ | head -8
+            echo ""
+            echo "=== 关键文件检查 ==="
+            [ -f /opt/myapp/backend/.env.production ] && echo "✅ .env.production 在" || echo "❌ .env.production 不在！"
+            [ -d /opt/myapp/backend/uploads ] && echo "✅ uploads 在" || echo "❌ uploads 不在！"
+            echo ""
+            echo "=== backend/package.json 的 name ==="
+            cat /opt/myapp/backend/package.json | head -3
+          '
 
       # 4. 重新 build 后端镜像
+      #    服务器自己 build，不在 GitHub runner 上 build（runner 没 docker daemon）
       - name: Rebuild backend image
         run: |
           ssh -i /tmp/deploy_key admin@${{ secrets.SERVER_HOST }} \
             "cd /opt/myapp && docker compose build backend"
 
-      # 5. 重启后端容器（新镜像生效）
+      # 5. 重启后端容器（新镜像生效，零停服：docker 会先起新容器再停旧的）
       # docker compose build backend	服务器自己 build 镜像	不在 GitHub runner 上 build（runner 没 docker daemon），
       # 把代码传过去让服务器 build
       # docker compose up -d backend	重启容器	用新镜像替换运行中的容器，零停服（docker 会先起新容器再停旧的）
@@ -61,3 +84,9 @@ jobs:
         run: |
           ssh -i /tmp/deploy_key admin@${{ secrets.SERVER_HOST }} \
             "docker logs myapp-backend --tail 30"
+
+      # 7. 验证容器里跑的是不是 web 项目（防止又部署成 study）
+      - name: Verify deployed package
+        run: |
+          ssh -i /tmp/deploy_key admin@${{ secrets.SERVER_HOST }} \
+            "echo '=== 容器内 package.json 头部 ===' && docker exec myapp-backend cat /app/package.json | head -5"
