@@ -77,6 +77,7 @@ const BlogList = () => {
       const res = await getBlogList(data);
       setBlogList(res.data || []);
       setTotal(res.total || 0);
+      setPage(page);
     } catch (err) {
       console.error('获取博客列表失败:', err);
     } finally {
